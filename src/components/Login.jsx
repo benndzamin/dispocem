@@ -12,8 +12,7 @@ export default function Login() {
     setLoading(true);
     setErrorMsg("");
 
-    // Supabase ugrađena metoda za prijavu preko maila i lozinke
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -21,6 +20,27 @@ export default function Login() {
     if (error) {
       setErrorMsg("Pogrešan email ili lozinka. Pokušajte ponovo.");
       setLoading(false);
+      return;
+    }
+
+    if (data?.user?.id) {
+      // Dohvati rolu iz baze umjesto da je određujemo po emailu
+      const { data: userData } = await supabase
+        .from("users")
+        .select("rola")
+        .eq("id", data.user.id)
+        .single();
+
+      const role = userData?.rola || "buyer";
+
+      // Kreiraj profil ako ne postoji (default: buyer)
+      await supabase.rpc("ensure_user_profile", {
+        p_user_id: data.user.id,
+        p_email: data.user.email,
+        p_role: role,
+        p_naziv_firme: "",
+        p_adresa: "",
+      });
     }
   };
 

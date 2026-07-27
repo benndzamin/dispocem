@@ -1,13 +1,14 @@
-export default function KupacDashboard() {
+import { useState } from "react";
+import AnnouncementForm from "./AnnouncementForm";
+import AnnouncementsList from "./AnnouncementsList";
+
+export default function KupacDashboard({ user, userProfile }) {
+  const [refreshKey, setRefreshKey] = useState(0);
+
   return (
-    <div className="p-8 bg-slate-950 min-h-screen text-white">
-      <h1 className="text-3xl font-bold border-b border-slate-800 pb-4 text-blue-400">
-        Portal za Kupce (Dispečer)
-      </h1>
-      <p className="mt-4 text-slate-400">
-        Ovdje kupci kreiraju nove najave, unose tablice i biraju isključivo
-        dozvoljenu robu.
-      </p>
+    <div className="space-y-6">
+      <AnnouncementForm currentUser={user} buyerProfile={userProfile} onCreated={() => setRefreshKey((v) => v + 1)} />
+      <AnnouncementsList role="buyer" currentUser={user} refreshKey={refreshKey} />
     </div>
   );
 }

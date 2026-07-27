@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import Login from "./components/Login";
+import AdminDashboard from "./components/AdminDashboard";
+import KupacDashboard from "./components/KupacDashboard";
+import VagaSupervisor from "./components/VagaSupervisor";
+import VagaOperator from "./components/VagaOperator";
+import UserBadge from "./components/UserBadge";
 
 export default function App() {
   const [session, setSession] = useState(null);
   const [userRole, setUserRole] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,16 +40,18 @@ export default function App() {
   const fetchUserRole = async (userId) => {
     try {
       const { data, error } = await supabase
-        .from("korisnici_profile")
-        .select("rola")
+        .from("users")
+        .select("*")
         .eq("id", userId)
         .single();
 
       if (error) throw error;
-      setUserRole(data?.rola || "user");
+      setUserProfile(data);
+      setUserRole(data?.rola || "buyer");
     } catch (err) {
       console.error("Greška pri dohvatanju role:", err.message);
-      setUserRole("user");
+      setUserProfile(null);
+      setUserRole("buyer");
     } finally {
       setLoading(false);
     }
@@ -77,12 +85,9 @@ export default function App() {
           <h1 className="text-lg font-bold tracking-tight text-white">
             DISPOCEM LOGISTICS
           </h1>
-          <p className="text-xs text-slate-500">
-            Prijavljeni ste kao:{" "}
-            <span className="text-indigo-400 font-medium">
-              {session.user.email}
-            </span>
-          </p>
+          <div className="mt-1.5 flex items-center gap-3">
+            <UserBadge user={session.user} userProfile={userProfile} />
+          </div>
         </div>
 
         {/* Profi Logout Button */}
@@ -96,34 +101,16 @@ export default function App() {
 
       {/* Ruter ekrana u zavisnosti od role */}
       <main className="p-6">
-        {userRole === "admin" && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-            <h2 className="text-xl font-bold text-white mb-2">
-              🔒 Administracija — Kontrolna Tabla
-            </h2>
-            <p className="text-sm text-slate-400">
-              Pregled svih procesa fabrike, upravljanje korisnicima i napredna
-              statistika otpreme.
-            </p>
-          </div>
+        {userRole === "admin" && <AdminDashboard user={session?.user} />}
+
+        {userRole === "wb_supervisor" && (
+          <VagaSupervisor user={session?.user} />
         )}
 
-        {userRole === "weightbridge_supervisor" && (
-          <div className="text-blue-400 font-semibold bg-slate-900 p-6 rounded-xl border border-slate-800">
-            Pregled Vage — Nadzornik
-          </div>
-        )}
+        {userRole === "wb_operator" && <VagaOperator user={session?.user} />}
 
-        {userRole === "weightbridge_operator" && (
-          <div className="text-emerald-400 font-semibold bg-slate-900 p-6 rounded-xl border border-slate-800">
-            Vaga — Operater (Ulaz / Izlaz kamiona)
-          </div>
-        )}
-
-        {userRole === "user" && (
-          <div className="text-slate-400 bg-slate-900 p-6 rounded-xl border border-slate-800">
-            Klijentski Portal (Pregled najava za kupce)
-          </div>
+        {userRole === "buyer" && (
+          <KupacDashboard user={session?.user} userProfile={userProfile} />
         )}
       </main>
     </div>
