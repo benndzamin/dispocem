@@ -1,9 +1,30 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 
-export default function AnnouncementsList({ role, currentUser, refreshKey }) {
+export default function AnnouncementsList({
+  role,
+  currentUser,
+  refreshKey,
+  hideTopBorder = false,
+  onCreateNew,
+}) {
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [notification, setNotification] = useState(null);
+  const [statusTarget, setStatusTarget] = useState(null);
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [historyTarget, setHistoryTarget] = useState(null);
+  const [historyEntries, setHistoryEntries] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const showNotification = (message, type = "success") => {
+    setNotification({ message, type });
+    window.setTimeout(() => setNotification(null), 3000);
+  };
 
   const fetchAnnouncements = async () => {
     setLoading(true);
@@ -18,7 +39,14 @@ export default function AnnouncementsList({ role, currentUser, refreshKey }) {
 
     const { data, error } = await query;
     setLoading(false);
-    if (!error) setAnnouncements(data || []);
+    if (!error) {
+      setAnnouncements(data || []);
+    } else {
+      showNotification(
+        "Greška pri učitavanju najava: " + error.message,
+        "error",
+      );
+    }
   };
 
   useEffect(() => {
@@ -33,77 +61,558 @@ export default function AnnouncementsList({ role, currentUser, refreshKey }) {
     if (!error) fetchAnnouncements();
   };
 
-  const completeAnnouncement = async (id) => {
-    const { error } = await supabase
-      .from("announcements")
-      .update({ status: "completed" })
-      .eq("id", id);
-    if (!error) fetchAnnouncements();
+  const openStatusModal = (announcement) => {
+    setStatusTarget(announcement);
+    setSelectedStatus(announcement.status);
   };
 
+  const closeStatusModal = () => {
+    if (statusLoading) return;
+    setStatusTarget(null);
+    setSelectedStatus("");
+  };
+
+  const updateAnnouncementStatus = async () => {
+    if (!statusTarget || !selectedStatus) return;
+
+    setStatusLoading(true);
+    const previousStatus = statusTarget.status;
+    const { error } = await supabase
+      .from("announcements")
+      .update({ status: selectedStatus })
+      .eq("id", statusTarget.id);
+
+    if (error) {
+      showNotification(
+        "Greška pri promjeni statusa najave: " + error.message,
+        "error",
+      );
+      setStatusLoading(false);
+      return;
+    }
+
+    await supabase.from("announcement_status_history").insert({
+      announcement_id: statusTarget.id,
+      changed_by: currentUser?.id,
+      old_status: previousStatus,
+      new_status: selectedStatus,
+    });
+
+    setStatusLoading(false);
+    setStatusTarget(null);
+    setSelectedStatus("");
+    await fetchAnnouncements();
+    showNotification(
+      previousStatus === selectedStatus
+        ? `Status najave za ${statusTarget.firma} je ostao ${selectedStatus}.`
+        : `Status najave za ${statusTarget.firma} je promijenjen: ${previousStatus} → ${selectedStatus}.`,
+    );
+  };
+
+  const openHistoryModal = async (item) => {
+    setHistoryTarget(item);
+    setHistoryLoading(true);
+
+    const [creatorResult, historyResult] = await Promise.all([
+      item.created_by
+        ? supabase
+            .from("users")
+            .select("email")
+            .eq("id", item.created_by)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      supabase
+        .from("announcement_status_history")
+        .select("*, changed_by_user:users(email)")
+        .eq("announcement_id", item.id)
+        .order("changed_at", { ascending: true }),
+    ]);
+
+    setHistoryLoading(false);
+
+    if (historyResult.error) {
+      showNotification(
+        "Greška pri učitavanju istorije izmjena: " +
+          historyResult.error.message,
+        "error",
+      );
+      return;
+    }
+
+    const events = [
+      {
+        id: "created",
+        label: "Najava kreirana",
+        by: creatorResult.data?.email || "-",
+        at: item.created_at,
+      },
+      ...(historyResult.data || []).map((entry) => ({
+        id: entry.id,
+        label: `Status promijenjen: ${entry.old_status || "-"} → ${entry.new_status}`,
+        by: entry.changed_by_user?.email || "-",
+        at: entry.changed_at,
+      })),
+    ];
+
+    setHistoryEntries(events);
+  };
+
+  const closeHistoryModal = () => {
+    setHistoryTarget(null);
+    setHistoryEntries([]);
+  };
+
+  const filteredAnnouncements = announcements.filter((item) => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return true;
+    return (
+      item.firma?.toLowerCase().includes(term) ||
+      item.vrsta_cementa?.toLowerCase().includes(term) ||
+      item.ime_vozaca?.toLowerCase().includes(term) ||
+      item.prezime_vozaca?.toLowerCase().includes(term) ||
+      item.registarske_oznake?.toLowerCase().includes(term) ||
+      item.status?.toLowerCase().includes(term)
+    );
+  });
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredAnnouncements.length / pageSize),
+  );
+  const paginatedAnnouncements = filteredAnnouncements.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+  const rangeStart =
+    filteredAnnouncements.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(
+    currentPage * pageSize,
+    filteredAnnouncements.length,
+  );
+
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
-      <div className="mb-4 flex items-center justify-between">
+    <div
+      className={`bg-white border-gray-200 p-6 ${
+        hideTopBorder ? "border-x border-b rounded-b-xl" : "border rounded-xl"
+      }`}
+    >
+      {notification && (
+        <div
+          role="alert"
+          className={`fixed right-4 top-4 z-[70] rounded-lg px-4 py-3 text-sm font-medium text-white shadow-lg ${
+            notification.type === "success" ? "bg-green-600" : "bg-red-600"
+          }`}
+        >
+          {notification.message}
+        </div>
+      )}
+      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-bold text-white">📋 Najave</h3>
-          <p className="text-sm text-slate-400">
+          <h3 className="text-lg font-bold text-gray-900">📋 Najave</h3>
+          <p className="text-sm text-gray-500">
             Pregled i upravljanje najavama.
           </p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Pretraži najave (firma, cement, vozač...)..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+            />
+          </div>
+          {onCreateNew && (
+            <button
+              type="button"
+              onClick={onCreateNew}
+              className="rounded-lg bg-brand-red hover:bg-brand-red-dark text-white px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap"
+            >
+              ➕ Nova najava
+            </button>
+          )}
         </div>
       </div>
 
       {loading ? (
-        <div className="text-sm text-slate-400">Učitavanje...</div>
+        <div className="text-sm text-gray-500">Učitavanje...</div>
       ) : announcements.length === 0 ? (
-        <div className="text-sm text-slate-400">Nema podataka.</div>
+        <div className="text-sm text-gray-500">Nema podataka.</div>
+      ) : filteredAnnouncements.length === 0 ? (
+        <div className="text-sm text-gray-500">
+          Nema najava koje odgovaraju pretrazi.
+        </div>
       ) : (
-        <div className="space-y-3">
-          {announcements.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-lg border border-slate-800 bg-slate-950 p-4"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <div className="font-semibold text-white">{item.firma}</div>
-                  <div className="text-sm text-slate-400">
-                    {item.vrsta_cementa}
-                  </div>
-                </div>
-                <div className="text-sm text-slate-300">
-                  Status:{" "}
-                  <span className="font-semibold text-indigo-400">
-                    {item.status}
-                  </span>
-                </div>
-              </div>
-              <div className="mt-3 grid gap-2 text-sm text-slate-400 md:grid-cols-3">
-                <div>Planirano: {item.datum_planiranja_odpreme}</div>
-                <div>
-                  Vozač: {item.ime_vozaca || "-"} {item.prezime_vozaca || ""}
-                </div>
-                <div>Reg: {item.registarske_oznake || "-"}</div>
-              </div>
-              <div className="mt-4 flex gap-2">
-                {role !== "buyer" && (
-                  <button
-                    onClick={() => completeAnnouncement(item.id)}
-                    className="rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white"
+        <>
+          <div className="overflow-x-auto border-t border-gray-200">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-gray-100 text-xs uppercase tracking-wide text-gray-600">
+                <tr>
+                  <th className="border-b border-gray-200 px-4 py-3 font-semibold">
+                    Firma
+                  </th>
+                  <th className="border-b border-gray-200 px-4 py-3 font-semibold">
+                    Datum kreiranja
+                  </th>
+                  <th className="border-b border-gray-200 px-4 py-3 font-semibold">
+                    Vrijeme kreiranja
+                  </th>
+                  <th className="border-b border-gray-200 px-4 py-3 font-semibold">
+                    Vrsta cementa
+                  </th>
+                  <th className="border-b border-gray-200 px-4 py-3 font-semibold">
+                    Planirani datum
+                  </th>
+                  <th className="border-b border-gray-200 px-4 py-3 font-semibold">
+                    Vozač
+                  </th>
+                  <th className="border-b border-gray-200 px-4 py-3 font-semibold">
+                    Registracija
+                  </th>
+                  <th className="border-b border-gray-200 px-4 py-3 font-semibold">
+                    Status
+                  </th>
+                  <th className="border-b border-gray-200 px-4 py-3 font-semibold">
+                    Akcije
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white text-gray-700">
+                {paginatedAnnouncements.map((item) => (
+                  <tr
+                    key={item.id}
+                    className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50"
                   >
-                    Označi kao completed
-                  </button>
-                )}
-                {role === "buyer" && (
-                  <button
-                    onClick={() => deleteAnnouncement(item.id)}
-                    className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400"
-                  >
-                    Obriši
-                  </button>
-                )}
-              </div>
+                    <td className="px-4 py-3 font-semibold text-gray-900">
+                      {item.firma}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3">
+                      {new Date(item.created_at).toLocaleDateString("hr-HR")}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3">
+                      {new Date(item.created_at).toLocaleTimeString("hr-HR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                    <td className="px-4 py-3">{item.vrsta_cementa}</td>
+                    <td className="whitespace-nowrap px-4 py-3">
+                      {item.datum_planiranja_odpreme}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3">
+                      {item.ime_vozaca || "-"} {item.prezime_vozaca || ""}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3">
+                      {item.registarske_oznake || "-"}
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-brand-red">
+                      {item.status}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        {role !== "buyer" && (
+                          <button
+                            type="button"
+                            onClick={() => openStatusModal(item)}
+                            className="whitespace-nowrap rounded-lg bg-brand-red hover:bg-brand-red-dark text-white px-3 py-2 text-xs font-medium transition-colors"
+                          >
+                            Promijeni status
+                          </button>
+                        )}
+                        {role === "buyer" && (
+                          <button
+                            onClick={() => deleteAnnouncement(item.id)}
+                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 hover:bg-red-100"
+                          >
+                            Obriši
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => openHistoryModal(item)}
+                          className="whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs text-gray-600 hover:bg-gray-100 transition-colors"
+                        >
+                          Historija
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>
+                Prikazano {rangeStart}-{rangeEnd} od{" "}
+                {filteredAnnouncements.length} najava
+              </span>
+              <label className="ml-4 flex items-center gap-2">
+                <span className="text-xs uppercase text-gray-500 font-semibold">
+                  Po stranici
+                </span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+              </label>
             </div>
-          ))}
+
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-white"
+              >
+                Prethodna
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(
+                  (page) =>
+                    page === 1 ||
+                    page === totalPages ||
+                    Math.abs(page - currentPage) <= 1,
+                )
+                .reduce((acc, page, idx, arr) => {
+                  if (idx > 0 && page - arr[idx - 1] > 1) acc.push("...");
+                  acc.push(page);
+                  return acc;
+                }, [])
+                .map((page, idx) =>
+                  page === "..." ? (
+                    <span
+                      key={`ellipsis-${idx}`}
+                      className="px-2 text-sm text-gray-400"
+                    >
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={`rounded-lg border px-3 py-1.5 text-sm ${
+                        page === currentPage
+                          ? "border-brand-red bg-brand-red text-white"
+                          : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ),
+                )}
+              <button
+                type="button"
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={currentPage === totalPages}
+                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-white"
+              >
+                Sljedeća
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {statusTarget && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/60 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="change-status-title"
+            className="w-full max-w-2xl rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl shadow-black/10"
+          >
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h3
+                  id="change-status-title"
+                  className="text-lg font-semibold text-gray-900"
+                >
+                  Mijenjate status najave
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Pregledajte podatke i odaberite novi status najave.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeStatusModal}
+                disabled={statusLoading}
+                className="rounded-full border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+              >
+                Zatvori
+              </button>
+            </div>
+
+            <dl className="grid gap-x-6 gap-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Firma
+                </dt>
+                <dd className="mt-1 font-medium text-gray-900">
+                  {statusTarget.firma}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Vrsta cementa
+                </dt>
+                <dd className="mt-1 text-gray-800">
+                  {statusTarget.vrsta_cementa}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Planirani datum
+                </dt>
+                <dd className="mt-1 text-gray-800">
+                  {statusTarget.datum_planiranja_odpreme}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Vozač
+                </dt>
+                <dd className="mt-1 text-gray-800">
+                  {statusTarget.ime_vozaca || "-"}{" "}
+                  {statusTarget.prezime_vozaca || ""}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Registracija
+                </dt>
+                <dd className="mt-1 text-gray-800">
+                  {statusTarget.registarske_oznake || "-"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Trenutni status
+                </dt>
+                <dd className="mt-1 font-medium text-brand-red">
+                  {statusTarget.status}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="mt-5">
+              <label
+                htmlFor="announcement-status"
+                className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500"
+              >
+                Novi status
+              </label>
+              <select
+                id="announcement-status"
+                value={selectedStatus}
+                onChange={(event) => setSelectedStatus(event.target.value)}
+                disabled={statusLoading}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-brand-red focus:ring-2 focus:ring-red-100 focus:outline-none disabled:opacity-50"
+              >
+                <option value="pending">pending</option>
+                <option value="in_progress">in progress</option>
+                <option value="completed">completed</option>
+              </select>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeStatusModal}
+                disabled={statusLoading}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+              >
+                Odustani
+              </button>
+              <button
+                type="button"
+                onClick={updateAnnouncementStatus}
+                disabled={statusLoading}
+                className="rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {statusLoading ? "Spremanje..." : "Potvrdi promjenu"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {historyTarget && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/60 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="history-title"
+            className="w-full max-w-2xl rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl shadow-black/10"
+          >
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h3
+                  id="history-title"
+                  className="text-lg font-semibold text-gray-900"
+                >
+                  Historija izmjena — {historyTarget.firma}
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Hronološki pregled: kreiranje najave i sve naredne izmjene
+                  statusa.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeHistoryModal}
+                className="rounded-full border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Zatvori
+              </button>
+            </div>
+
+            {historyLoading ? (
+              <div className="text-sm text-gray-500">Učitavanje...</div>
+            ) : historyEntries.length === 0 ? (
+              <div className="text-sm text-gray-500">
+                Još nema zabilježenih izmjena statusa za ovu najavu.
+              </div>
+            ) : (
+              <ul className="max-h-96 space-y-3 overflow-y-auto">
+                {historyEntries.map((event) => (
+                  <li
+                    key={event.id}
+                    className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm"
+                  >
+                    <div className="font-medium text-gray-900">
+                      {event.label}
+                    </div>
+                    <div className="mt-1 text-gray-500">
+                      {event.by} ·{" "}
+                      {new Date(event.at).toLocaleDateString("hr-HR")}{" "}
+                      {new Date(event.at).toLocaleTimeString("hr-HR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       )}
     </div>

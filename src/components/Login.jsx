@@ -45,26 +45,29 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 font-sans px-4">
-      <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-xl p-8 shadow-2xl">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-extrabold text-white tracking-tight">
-            DISPOCEM LOGISTICS
-          </h2>
-          <p className="text-sm text-slate-400 mt-2">
-            Sistem za pametno upravljanje otpremom robe
-          </p>
+    <div className="min-h-screen flex items-center justify-center bg-[url('/background-image.jpg')] bg-cover bg-center font-sans px-4">
+      <div className="max-w-md w-full bg-white border border-gray-200 rounded-xl p-8 shadow-2xl">
+        <div className="mb-8 flex items-center justify-center gap-4">
+          <img src="/logo.png" alt="Lukavac Cement" className="h-24 w-auto" />
+          <div>
+            <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+              DISPOCEM LOGISTICS
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Sistem za pametno upravljanje otpremom
+            </p>
+          </div>
         </div>
 
         {errorMsg && (
-          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
+          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm text-center">
             {errorMsg}
           </div>
         )}
 
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
               E-mail adresa
             </label>
             <input
@@ -72,13 +75,13 @@ export default function Login() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100 transition-colors"
               placeholder="ime.prezime@firma.ba"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
               Lozinka
             </label>
             <input
@@ -86,7 +89,7 @@ export default function Login() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100 transition-colors"
               placeholder="••••••••"
             />
           </div>
@@ -94,7 +97,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-medium py-3 rounded-lg transition-colors shadow-lg shadow-indigo-600/20 mt-2 disabled:opacity-50"
+            className="w-full bg-brand-red hover:bg-brand-red-dark active:bg-brand-red-dark text-white font-medium py-3 rounded-lg transition-colors shadow-lg shadow-red-600/10 mt-2 disabled:opacity-50"
           >
             {loading ? "Povezivanje..." : "Prijavi se na sistem"}
           </button>

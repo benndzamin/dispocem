@@ -6,18 +6,18 @@ import AnnouncementsList from "./AnnouncementsList";
 
 const tabs = [
   { key: "home", label: "Početna" },
-  { key: "announcements", label: "Najave" },
-  { key: "buyers", label: "Kupci" },
   { key: "cement", label: "Vrste cementa" },
+  { key: "buyers", label: "Kupci" },
+  { key: "announcements", label: "Najave" },
 ];
 
 export default function AdminDashboard({ user }) {
   const [activeTab, setActiveTab] = useState("home");
   const [stats, setStats] = useState({
     buyers: 0,
-    announcements: 0,
     cementTypes: 0,
     pendingAnnouncements: 0,
+    inProgressAnnouncements: 0,
   });
   const [recentAnnouncements, setRecentAnnouncements] = useState([]);
   const [loadingStats, setLoadingStats] = useState(false);
@@ -29,9 +29,9 @@ export default function AdminDashboard({ user }) {
       try {
         const [
           buyersResult,
-          announcementsResult,
           cementResult,
           pendingResult,
+          inProgressResult,
           recentResult,
         ] = await Promise.all([
           supabase
@@ -39,15 +39,17 @@ export default function AdminDashboard({ user }) {
             .select("id", { count: "exact", head: true })
             .eq("rola", "buyer"),
           supabase
-            .from("announcements")
-            .select("id", { count: "exact", head: true }),
-          supabase
             .from("cement_types")
-            .select("id", { count: "exact", head: true }),
+            .select("id", { count: "exact", head: true })
+            .eq("is_active", true),
           supabase
             .from("announcements")
             .select("id", { count: "exact", head: true })
             .eq("status", "pending"),
+          supabase
+            .from("announcements")
+            .select("id", { count: "exact", head: true })
+            .eq("status", "in_progress"),
           supabase
             .from("announcements")
             .select("*")
@@ -57,9 +59,9 @@ export default function AdminDashboard({ user }) {
 
         setStats({
           buyers: buyersResult.count ?? 0,
-          announcements: announcementsResult.count ?? 0,
           cementTypes: cementResult.count ?? 0,
           pendingAnnouncements: pendingResult.count ?? 0,
+          inProgressAnnouncements: inProgressResult.count ?? 0,
         });
 
         setRecentAnnouncements(recentResult.data || []);
@@ -77,13 +79,13 @@ export default function AdminDashboard({ user }) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-white">
+      <div className="rounded-2xl border border-gray-200 bg-white p-6">
+        <div className="flex flex-col gap-4 border-b border-gray-200 sm:flex-row sm:items-end sm:justify-between">
+          <div className="pb-4">
+            <h2 className="text-2xl font-semibold text-gray-900">
               Admin dashboard
             </h2>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-gray-500">
               Upravljajte statistikama, najavama, kupcima i vrstama cementa.
             </p>
           </div>
@@ -94,10 +96,10 @@ export default function AdminDashboard({ user }) {
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`rounded-full px-4 py-2 text-sm transition ${
+                className={`-mb-px rounded-t-lg border px-4 py-2.5 text-sm transition-colors ${
                   activeTab === tab.key
-                    ? "bg-indigo-600 text-white"
-                    : "bg-slate-900 text-slate-300 hover:bg-slate-800"
+                    ? "relative z-10 border-gray-200 border-b-white bg-white font-semibold text-brand-red"
+                    : "border-transparent border-b-gray-200 bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
                 }`}
               >
                 {tab.label}
@@ -107,60 +109,66 @@ export default function AdminDashboard({ user }) {
         </div>
 
         {activeTab === "home" && (
-          <div className="space-y-8">
+          <div className="mt-6 space-y-8">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
-                <div className="text-sm uppercase text-slate-400">Kupci</div>
-                <div className="mt-4 text-3xl font-bold text-white">
+              <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
+                <div className="text-sm uppercase text-gray-500">Kupci</div>
+                <div className="mt-4 text-3xl font-bold text-gray-900">
                   {stats.buyers}
                 </div>
-                <div className="mt-2 text-sm text-slate-500">
+                <div className="mt-2 text-sm text-gray-500">
                   Aktivni kupci u sistemu
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
-                <div className="text-sm uppercase text-slate-400">Najave</div>
-                <div className="mt-4 text-3xl font-bold text-white">
-                  {stats.announcements}
+              <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
+                <div className="text-sm uppercase text-gray-500">
+                  Vrste cementa
                 </div>
-                <div className="mt-2 text-sm text-slate-500">Ukupno najava</div>
-              </div>
-
-              <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
-                <div className="text-sm uppercase text-slate-400">Cement</div>
-                <div className="mt-4 text-3xl font-bold text-white">
+                <div className="mt-4 text-3xl font-bold text-gray-900">
                   {stats.cementTypes}
                 </div>
-                <div className="mt-2 text-sm text-slate-500">Vrste cementa</div>
+                <div className="mt-2 text-sm text-gray-500">
+                  Aktivne vrste cementa
+                </div>
               </div>
 
-              <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
-                <div className="text-sm uppercase text-slate-400">Pending</div>
-                <div className="mt-4 text-3xl font-bold text-white">
+              <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
+                <div className="text-sm uppercase text-gray-500">Najave</div>
+                <div className="mt-4 text-3xl font-bold text-gray-900">
                   {stats.pendingAnnouncements}
                 </div>
-                <div className="mt-2 text-sm text-slate-500">
-                  Najave na čekanju
+                <div className="mt-2 text-sm text-gray-500">
+                  Status: pending
                 </div>
+              </div>
+
+              <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
+                <div className="text-sm uppercase text-gray-500">
+                  In progress
+                </div>
+                <div className="mt-4 text-3xl font-bold text-gray-900">
+                  {stats.inProgressAnnouncements}
+                </div>
+                <div className="mt-2 text-sm text-gray-500">Najave u toku</div>
               </div>
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-              <div className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
+              <div className="rounded-3xl border border-gray-200 bg-gray-50 p-6">
                 <div className="mb-4 flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-white">
+                    <h3 className="text-lg font-semibold text-gray-900">
                       Brze akcije
                     </h3>
-                    <p className="text-sm text-slate-400">
+                    <p className="text-sm text-gray-500">
                       Prebacite se brzo na najčešće zadatke.
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={handleRefresh}
-                    className="rounded-full bg-slate-800 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700"
+                    className="rounded-full bg-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-300"
                   >
                     Osvježi
                   </button>
@@ -170,10 +178,10 @@ export default function AdminDashboard({ user }) {
                   <button
                     type="button"
                     onClick={() => setActiveTab("announcements")}
-                    className="rounded-2xl border border-slate-800 bg-slate-950 px-4 py-5 text-left text-white transition hover:border-indigo-500"
+                    className="rounded-2xl border border-gray-200 bg-white px-4 py-5 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50"
                   >
                     <div className="font-semibold">📢 Upravljaj najavama</div>
-                    <div className="mt-2 text-sm text-slate-400">
+                    <div className="mt-2 text-sm text-gray-500">
                       Pregledaj i ažuriraj postojeće najave.
                     </div>
                   </button>
@@ -181,10 +189,10 @@ export default function AdminDashboard({ user }) {
                   <button
                     type="button"
                     onClick={() => setActiveTab("buyers")}
-                    className="rounded-2xl border border-slate-800 bg-slate-950 px-4 py-5 text-left text-white transition hover:border-indigo-500"
+                    className="rounded-2xl border border-gray-200 bg-white px-4 py-5 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50"
                   >
                     <div className="font-semibold">👥 Upravljaj kupcima</div>
-                    <div className="mt-2 text-sm text-slate-400">
+                    <div className="mt-2 text-sm text-gray-500">
                       Dodaj ili izmijeni kupce.
                     </div>
                   </button>
@@ -192,10 +200,10 @@ export default function AdminDashboard({ user }) {
                   <button
                     type="button"
                     onClick={() => setActiveTab("cement")}
-                    className="rounded-2xl border border-slate-800 bg-slate-950 px-4 py-5 text-left text-white transition hover:border-indigo-500"
+                    className="rounded-2xl border border-gray-200 bg-white px-4 py-5 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50"
                   >
                     <div className="font-semibold">🧱 Dodaj cement</div>
-                    <div className="mt-2 text-sm text-slate-400">
+                    <div className="mt-2 text-sm text-gray-500">
                       Dodaj novu vrstu cementa.
                     </div>
                   </button>
@@ -203,32 +211,32 @@ export default function AdminDashboard({ user }) {
                   <button
                     type="button"
                     onClick={() => setActiveTab("home")}
-                    className="rounded-2xl border border-slate-800 bg-slate-950 px-4 py-5 text-left text-white transition hover:border-indigo-500"
+                    className="rounded-2xl border border-gray-200 bg-white px-4 py-5 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50"
                   >
                     <div className="font-semibold">📈 Pregled statistike</div>
-                    <div className="mt-2 text-sm text-slate-400">
+                    <div className="mt-2 text-sm text-gray-500">
                       Pogledajte ključne metrike u jednom mjestu.
                     </div>
                   </button>
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
+              <div className="rounded-3xl border border-gray-200 bg-gray-50 p-6">
                 <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-white">
+                  <h3 className="text-lg font-semibold text-gray-900">
                     Najnovije najave
                   </h3>
-                  <p className="text-sm text-slate-400">
+                  <p className="text-sm text-gray-500">
                     Tri najnovije najave iz sistema.
                   </p>
                 </div>
 
                 {loadingStats ? (
-                  <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-400">
+                  <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-500">
                     Učitavanje...
                   </div>
                 ) : recentAnnouncements.length === 0 ? (
-                  <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-400">
+                  <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-500">
                     Nema najnovijih najava.
                   </div>
                 ) : (
@@ -236,22 +244,22 @@ export default function AdminDashboard({ user }) {
                     {recentAnnouncements.map((announcement) => (
                       <div
                         key={announcement.id}
-                        className="rounded-2xl border border-slate-800 bg-slate-950 p-4"
+                        className="rounded-2xl border border-gray-200 bg-white p-4"
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div>
-                            <div className="font-semibold text-white">
+                            <div className="font-semibold text-gray-900">
                               {announcement.firma}
                             </div>
-                            <div className="text-sm text-slate-400">
+                            <div className="text-sm text-gray-500">
                               {announcement.vrsta_cementa}
                             </div>
                           </div>
-                          <div className="text-xs uppercase text-slate-500">
+                          <div className="text-xs uppercase text-gray-500">
                             {announcement.status}
                           </div>
                         </div>
-                        <div className="mt-3 grid gap-2 text-sm text-slate-400">
+                        <div className="mt-3 grid gap-2 text-sm text-gray-500">
                           <div>
                             Planirano: {announcement.datum_planiranja_odpreme}
                           </div>
@@ -270,18 +278,18 @@ export default function AdminDashboard({ user }) {
         )}
 
         {activeTab === "announcements" && (
-          <div className="space-y-6">
-            <AnnouncementsList
-              role="admin"
-              currentUser={user}
-              refreshKey={refreshKey}
-            />
-          </div>
+          <AnnouncementsList
+            role="admin"
+            currentUser={user}
+            refreshKey={refreshKey}
+            hideTopBorder
+          />
         )}
 
         {activeTab === "buyers" && (
           <BuyerManagement
             showNotification={(msg, type) => console.log(msg, type)}
+            hideTopBorder
           />
         )}
 

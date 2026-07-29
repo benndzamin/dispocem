@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { CEMENT_CATALOG } from "../constants/cementCatalog";
 
-export default function BuyerManagement({ showNotification = () => {} }) {
+export default function BuyerManagement({
+  showNotification = () => {},
+  hideTopBorder = false,
+}) {
   const [buyers, setBuyers] = useState([]);
   const [cementTypes, setCementTypes] = useState(CEMENT_CATALOG);
   const [loading, setLoading] = useState(false);
@@ -16,6 +19,9 @@ export default function BuyerManagement({ showNotification = () => {} }) {
   const [message, setMessage] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("create");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const resetForm = () => {
     setSelectedBuyer(null);
@@ -72,6 +78,7 @@ export default function BuyerManagement({ showNotification = () => {} }) {
     const { data, error } = await supabase
       .from("cement_types")
       .select("*")
+      .eq("is_active", true)
       .order("name", { ascending: true });
 
     if (!error) {
@@ -114,24 +121,6 @@ export default function BuyerManagement({ showNotification = () => {} }) {
       );
     }
     return error;
-  };
-
-  const toggleAnnouncementRequired = async (buyerId, currentValue) => {
-    setLoading(true);
-    const { error } = await supabase
-      .from("users")
-      .update({ announcement_required: !currentValue })
-      .eq("id", buyerId);
-    setLoading(false);
-    if (!error) {
-      fetchBuyers();
-      showNotification("Status najave je uspješno ažuriran.", "success");
-    } else {
-      showNotification(
-        "Greška pri ažuriranju statusa najave: " + error.message,
-        "error",
-      );
-    }
   };
 
   const handleEditClick = (buyer) => openBuyerModal(buyer);
@@ -210,36 +199,73 @@ export default function BuyerManagement({ showNotification = () => {} }) {
     }
   };
 
+  const filteredBuyers = buyers.filter((buyer) => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return true;
+    return (
+      buyer.naziv_firme?.toLowerCase().includes(term) ||
+      buyer.email?.toLowerCase().includes(term) ||
+      buyer.adresa?.toLowerCase().includes(term)
+    );
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredBuyers.length / pageSize));
+  const paginatedBuyers = filteredBuyers.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+  const rangeStart =
+    filteredBuyers.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(currentPage * pageSize, filteredBuyers.length);
+
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+    <div
+      className={`bg-white border-gray-200 p-6 ${
+        hideTopBorder ? "border-x border-b rounded-b-xl" : "border rounded-xl"
+      }`}
+    >
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-bold text-white mb-2">
+          <h3 className="text-lg font-bold text-gray-900 mb-2">
             👥 Upravljanje kupcima
           </h3>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-gray-500">
             Supervisor može dodavati i uređivati kupce, te mijenjati njihove
             dozvole i zahtjeve za najave.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => openBuyerModal()}
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
-        >
-          Dodaj novog kupca
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Pretraži kupce (firma, email, adresa)..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => openBuyerModal()}
+            className="rounded-lg bg-brand-red hover:bg-brand-red-dark text-white px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap"
+          >
+            ➕ Dodaj novog kupca
+          </button>
+        </div>
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
-          <div className="w-full max-w-3xl rounded-3xl border border-slate-800 bg-slate-950 p-6 shadow-2xl shadow-black/40">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4">
+          <div className="w-full max-w-3xl rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl shadow-black/10">
             <div className="mb-4 flex items-center justify-between gap-4">
               <div>
-                <h4 className="text-lg font-semibold text-white">
+                <h4 className="text-lg font-semibold text-gray-900">
                   {modalMode === "edit" ? "Uredi kupca" : "Dodaj novog kupca"}
                 </h4>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-gray-500">
                   {modalMode === "edit"
                     ? "Ažurirajte podatke postojećeg kupca."
                     : "Kreirajte novi nalog kupca i definišite dozvoljene artikle."}
@@ -248,7 +274,7 @@ export default function BuyerManagement({ showNotification = () => {} }) {
               <button
                 type="button"
                 onClick={closeBuyerModal}
-                className="rounded-full border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800"
+                className="rounded-full border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
                 Zatvori
               </button>
@@ -257,7 +283,7 @@ export default function BuyerManagement({ showNotification = () => {} }) {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-xs uppercase text-slate-400 font-semibold mb-1">
+                  <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
                     Email
                   </label>
                   <input
@@ -266,13 +292,13 @@ export default function BuyerManagement({ showNotification = () => {} }) {
                     disabled={modalMode === "edit"}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
                   />
                 </div>
 
                 {modalMode === "create" && (
                   <div>
-                    <label className="block text-xs uppercase text-slate-400 font-semibold mb-1">
+                    <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
                       Lozinka
                     </label>
                     <input
@@ -280,13 +306,13 @@ export default function BuyerManagement({ showNotification = () => {} }) {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
                     />
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-xs uppercase text-slate-400 font-semibold mb-1">
+                  <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
                     Naziv firme
                   </label>
                   <input
@@ -294,38 +320,38 @@ export default function BuyerManagement({ showNotification = () => {} }) {
                     required
                     value={nazivFirme}
                     onChange={(e) => setNazivFirme(e.target.value)}
-                    className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs uppercase text-slate-400 font-semibold mb-1">
+                  <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
                     Adresa
                   </label>
                   <input
                     type="text"
                     value={adresa}
                     onChange={(e) => setAdresa(e.target.value)}
-                    className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
                   />
                 </div>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
-                <label className="text-xs uppercase text-slate-400 font-semibold">
+                <label className="text-xs uppercase text-gray-500 font-semibold">
                   Dozvoljeni artikli:
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {cementTypes.map((cement) => (
                     <label
                       key={cement.value}
-                      className="flex items-center gap-1 text-sm text-white"
+                      className="flex items-center gap-1 text-sm text-gray-900"
                     >
                       <input
                         type="checkbox"
                         checked={dozvoljeniArtikli.includes(cement.value)}
                         onChange={() => handleCheckboxChange(cement.value)}
-                        className="form-checkbox rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500"
+                        className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red"
                       />
                       {cement.label}
                     </label>
@@ -333,14 +359,14 @@ export default function BuyerManagement({ showNotification = () => {} }) {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 text-sm text-white">
+              <div className="flex items-center gap-2 text-sm text-gray-900">
                 <input
                   type="checkbox"
                   checked={announcementRequired}
                   onChange={(e) => setAnnouncementRequired(e.target.checked)}
-                  className="form-checkbox rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500"
+                  className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red"
                 />
-                <label className="text-xs uppercase text-slate-400 font-semibold">
+                <label className="text-xs uppercase text-gray-500 font-semibold">
                   Zahtijeva najavu
                 </label>
               </div>
@@ -349,14 +375,14 @@ export default function BuyerManagement({ showNotification = () => {} }) {
                 <button
                   type="button"
                   onClick={closeBuyerModal}
-                  className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
+                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                 >
                   Odustani
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+                  className="rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark disabled:opacity-50"
                 >
                   {loading
                     ? "Spremanje..."
@@ -371,80 +397,80 @@ export default function BuyerManagement({ showNotification = () => {} }) {
       )}
 
       {/* Buyer List */}
-      <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
-        <h4 className="text-sm font-semibold text-white mb-4">
-          Postojeći kupci
-        </h4>
-        {loading ? (
-          <p className="text-slate-400">Učitavanje kupaca...</p>
-        ) : buyers.length === 0 ? (
-          <p className="text-slate-400">Nema registrovanih kupaca.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-700">
-              <thead className="bg-slate-800">
+
+      {loading ? (
+        <p className="text-gray-500">Učitavanje kupaca...</p>
+      ) : buyers.length === 0 ? (
+        <p className="text-gray-500">Nema registrovanih kupaca.</p>
+      ) : filteredBuyers.length === 0 ? (
+        <p className="text-gray-500">Nema kupaca koji odgovaraju pretrazi.</p>
+      ) : (
+        <>
+          <div className="overflow-x-auto border-t border-gray-200">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-gray-100 text-xs uppercase tracking-wide text-gray-600">
                 <tr>
                   <th
                     scope="col"
-                    className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400"
+                    className="border-b border-gray-200 px-4 py-3 font-semibold"
                   >
                     Firma
                   </th>
                   <th
                     scope="col"
-                    className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400"
+                    className="border-b border-gray-200 px-4 py-3 font-semibold"
                   >
                     Email
                   </th>
                   <th
                     scope="col"
-                    className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400"
+                    className="border-b border-gray-200 px-4 py-3 font-semibold"
                   >
                     Dozvoljeni artikli
                   </th>
                   <th
                     scope="col"
-                    className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400"
+                    className="border-b border-gray-200 px-4 py-3 font-semibold whitespace-nowrap"
                   >
                     Zahtijeva najavu
                   </th>
-                  <th scope="col" className="relative px-4 py-3">
+                  <th
+                    scope="col"
+                    className="relative border-b border-gray-200 px-4 py-3"
+                  >
                     <span className="sr-only">Uredi</span>
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800 bg-slate-900">
-                {buyers.map((buyer) => (
-                  <tr key={buyer.id}>
-                    <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-white">
+              <tbody className="bg-white text-gray-700">
+                {paginatedBuyers.map((buyer) => (
+                  <tr
+                    key={buyer.id}
+                    className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50"
+                  >
+                    <td className="px-4 py-3 font-semibold text-gray-900">
                       {buyer.naziv_firme}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-300">
-                      {buyer.email}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-slate-300">
+                    <td className="px-4 py-3">{buyer.email}</td>
+                    <td className="px-4 py-3">
                       {buyer.dozvoljeni_artikli &&
                       buyer.dozvoljeni_artikli.length > 0
                         ? buyer.dozvoljeni_artikli.join(", ")
                         : "Nijedan"}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-300">
+                    <td className="px-4 py-3">
                       <input
                         type="checkbox"
                         checked={buyer.announcement_required}
-                        onChange={() =>
-                          toggleAnnouncementRequired(
-                            buyer.id,
-                            buyer.announcement_required,
-                          )
-                        }
-                        className="form-checkbox rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500"
+                        disabled
+                        className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red disabled:cursor-not-allowed disabled:opacity-70"
                       />
                     </td>
-                    <td className="whitespace-nowrap px-4 py-4 text-right text-sm font-medium">
+                    <td className="px-4 py-3 text-right">
                       <button
+                        type="button"
                         onClick={() => handleEditClick(buyer)}
-                        className="text-indigo-400 hover:text-indigo-600"
+                        className="whitespace-nowrap rounded-lg bg-brand-red hover:bg-brand-red-dark text-white px-3 py-2 text-xs font-medium transition-colors"
                       >
                         Uredi
                       </button>
@@ -454,8 +480,90 @@ export default function BuyerManagement({ showNotification = () => {} }) {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>
+                Prikazano {rangeStart}-{rangeEnd} od {filteredBuyers.length}{" "}
+                kupaca
+              </span>
+              <label className="ml-4 flex items-center gap-2">
+                <span className="text-xs uppercase text-gray-500 font-semibold">
+                  Po stranici
+                </span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-white"
+              >
+                Prethodna
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(
+                  (page) =>
+                    page === 1 ||
+                    page === totalPages ||
+                    Math.abs(page - currentPage) <= 1,
+                )
+                .reduce((acc, page, idx, arr) => {
+                  if (idx > 0 && page - arr[idx - 1] > 1) acc.push("...");
+                  acc.push(page);
+                  return acc;
+                }, [])
+                .map((page, idx) =>
+                  page === "..." ? (
+                    <span
+                      key={`ellipsis-${idx}`}
+                      className="px-2 text-sm text-gray-400"
+                    >
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={`rounded-lg border px-3 py-1.5 text-sm ${
+                        page === currentPage
+                          ? "border-brand-red bg-brand-red text-white"
+                          : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ),
+                )}
+              <button
+                type="button"
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={currentPage === totalPages}
+                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-white"
+              >
+                Sljedeća
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -14,6 +14,7 @@ export default function RegistracijaKupca() {
     const { data, error } = await supabase
       .from("cement_types")
       .select("*")
+      .eq("is_active", true)
       .order("name", { ascending: true });
     if (!error) setCementTypes(data || []);
   };
@@ -93,33 +94,33 @@ export default function RegistracijaKupca() {
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-2xl mx-auto mt-6">
-      <h3 className="text-lg font-bold text-white mb-4">
+    <div className="bg-white border border-gray-200 rounded-xl p-6 max-w-2xl mx-auto mt-6">
+      <h3 className="text-lg font-bold text-gray-900 mb-4">
         👥 Registracija Novog Kupca
       </h3>
 
       <form onSubmit={handleRegistracija} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs uppercase text-slate-400 font-semibold mb-1">
+            <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
               Email kupca
             </label>
             <input
               type="email"
               required
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
           <div>
-            <label className="block text-xs uppercase text-slate-400 font-semibold mb-1">
+            <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
               Lozinka
             </label>
             <input
               type="password"
               required
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
@@ -128,25 +129,25 @@ export default function RegistracijaKupca() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs uppercase text-slate-400 font-semibold mb-1">
+            <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
               Naziv kompanije / kupca
             </label>
             <input
               type="text"
               required
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
               value={nazivFirme}
               onChange={(e) => setNazivFirme(e.target.value)}
             />
           </div>
           <div>
-            <label className="block text-xs uppercase text-slate-400 font-semibold mb-1">
+            <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
               Adresa sjedišta
             </label>
             <input
               type="text"
               required
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
               value={adresa}
               onChange={(e) => setAdresa(e.target.value)}
             />
@@ -154,18 +155,18 @@ export default function RegistracijaKupca() {
         </div>
 
         <div>
-          <label className="block text-xs uppercase text-slate-400 font-semibold mb-2">
+          <label className="block text-xs uppercase text-gray-500 font-semibold mb-2">
             Dozvoljene vrste cementa za otpremu
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-950 p-3 rounded-lg border border-slate-800">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
             {cementTypes.map((cement) => (
               <label
                 key={cement.id}
-                className="flex items-center space-x-2 text-sm text-slate-300 cursor-pointer"
+                className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer"
               >
                 <input
                   type="checkbox"
-                  className="rounded border-slate-800 text-indigo-600 focus:ring-indigo-500 bg-slate-900"
+                  className="rounded border-gray-300 text-brand-red focus:ring-brand-red bg-white"
                   checked={odabranaRoba.includes(cement.name)}
                   onChange={() => handleCheckboxChange(cement.name)}
                 />
@@ -178,7 +179,7 @@ export default function RegistracijaKupca() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-800 text-white font-semibold py-2 rounded-lg transition-colors duration-200"
+          className="w-full bg-brand-red hover:bg-brand-red-dark disabled:bg-brand-red-dark text-white font-semibold py-2 rounded-lg transition-colors duration-200"
         >
           {loading ? "Registracija u toku..." : "Registruj Kupca"}
         </button>

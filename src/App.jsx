@@ -64,8 +64,8 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white font-sans">
-        <div className="text-sm uppercase tracking-widest text-slate-500 animate-pulse">
+      <div className="min-h-screen flex items-center justify-center bg-[url('/background-image.jpg')] bg-cover bg-center text-gray-900 font-sans">
+        <div className="text-sm uppercase tracking-widest text-gray-500 animate-pulse">
           Učitavanje sistema...
         </div>
       </div>
@@ -78,22 +78,25 @@ export default function App() {
 
   // Zajednički Layout sa Navigacijom / Logout dugmetom za ulogovane korisnike
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
+    <div className="min-h-screen bg-[url('/background-image.jpg')] bg-cover bg-center bg-fixed text-gray-800 font-sans">
       {/* Glavni Top Bar sistema */}
-      <header className="border-b border-slate-900 bg-slate-900/50 backdrop-blur px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-bold tracking-tight text-white">
-            DISPOCEM LOGISTICS
-          </h1>
-          <div className="mt-1.5 flex items-center gap-3">
-            <UserBadge user={session.user} userProfile={userProfile} />
+      <header className="border-b border-gray-200 bg-white/80 backdrop-blur pr-6 h-20 flex items-center justify-between">
+        <div className="flex h-full items-center gap-3">
+          <img src="/logo.png" alt="Lukavac Cement" className="h-full w-auto" />
+          <div>
+            <h1 className="text-lg font-bold tracking-tight text-gray-900">
+              DISPOCEM LOGISTICS
+            </h1>
+            <div className="mt-1.5 flex items-center gap-3">
+              <UserBadge user={session.user} userProfile={userProfile} />
+            </div>
           </div>
         </div>
 
         {/* Profi Logout Button */}
         <button
           onClick={handleLogout}
-          className="bg-slate-950 hover:bg-red-950 border border-slate-800 hover:border-red-900 text-slate-400 hover:text-red-400 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-lg transition-all duration-200 cursor-pointer"
+          className="bg-white hover:bg-red-50 border border-gray-300 hover:border-brand-red text-gray-500 hover:text-brand-red text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-lg transition-all duration-200 cursor-pointer"
         >
           Odjavi se
         </button>
