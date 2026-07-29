@@ -17,6 +17,8 @@ export default function AnnouncementsList({
   const [historyTarget, setHistoryTarget] = useState(null);
   const [historyEntries, setHistoryEntries] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -53,12 +55,36 @@ export default function AnnouncementsList({
     fetchAnnouncements();
   }, [role, currentUser?.id, refreshKey]);
 
-  const deleteAnnouncement = async (id) => {
+  const openDeleteModal = (announcement) => {
+    setDeleteTarget(announcement);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleteLoading) return;
+    setDeleteTarget(null);
+  };
+
+  const confirmDeleteAnnouncement = async () => {
+    if (!deleteTarget) return;
+
+    setDeleteLoading(true);
     const { error } = await supabase
       .from("announcements")
       .delete()
-      .eq("id", id);
-    if (!error) fetchAnnouncements();
+      .eq("id", deleteTarget.id);
+    setDeleteLoading(false);
+
+    if (error) {
+      showNotification(
+        "Greška pri brisanju najave: " + error.message,
+        "error",
+      );
+      return;
+    }
+
+    setDeleteTarget(null);
+    await fetchAnnouncements();
+    showNotification(`Najava za ${deleteTarget.firma} je obrisana.`);
   };
 
   const openStatusModal = (announcement) => {
@@ -232,7 +258,7 @@ export default function AnnouncementsList({
               onClick={onCreateNew}
               className="rounded-lg bg-brand-red hover:bg-brand-red-dark text-white px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap"
             >
-              ➕ Nova najava
+              ➕ Dodaj novu najavu
             </button>
           )}
         </div>
@@ -252,31 +278,28 @@ export default function AnnouncementsList({
             <table className="min-w-full text-left text-sm">
               <thead className="bg-gray-100 text-xs uppercase tracking-wide text-gray-600">
                 <tr>
-                  <th className="border-b border-gray-200 px-4 py-3 font-semibold">
+                  <th className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold">
                     Firma
                   </th>
-                  <th className="border-b border-gray-200 px-4 py-3 font-semibold">
-                    Datum kreiranja
+                  <th className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold">
+                    Kreirano
                   </th>
-                  <th className="border-b border-gray-200 px-4 py-3 font-semibold">
-                    Vrijeme kreiranja
-                  </th>
-                  <th className="border-b border-gray-200 px-4 py-3 font-semibold">
+                  <th className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold">
                     Vrsta cementa
                   </th>
-                  <th className="border-b border-gray-200 px-4 py-3 font-semibold">
+                  <th className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold">
                     Planirani datum
                   </th>
-                  <th className="border-b border-gray-200 px-4 py-3 font-semibold">
+                  <th className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold">
                     Vozač
                   </th>
-                  <th className="border-b border-gray-200 px-4 py-3 font-semibold">
+                  <th className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold">
                     Registracija
                   </th>
-                  <th className="border-b border-gray-200 px-4 py-3 font-semibold">
+                  <th className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold">
                     Status
                   </th>
-                  <th className="border-b border-gray-200 px-4 py-3 font-semibold">
+                  <th className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold">
                     Akcije
                   </th>
                 </tr>
@@ -287,33 +310,47 @@ export default function AnnouncementsList({
                     key={item.id}
                     className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50"
                   >
-                    <td className="px-4 py-3 font-semibold text-gray-900">
+                    <td
+                      className="max-w-[16rem] truncate px-3 py-3 font-semibold text-gray-900"
+                      title={item.firma}
+                    >
                       {item.firma}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3">
-                      {new Date(item.created_at).toLocaleDateString("hr-HR")}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3">
+                    <td className="whitespace-nowrap px-3 py-3">
+                      {new Date(item.created_at).toLocaleDateString("hr-HR")}{" "}
                       {new Date(item.created_at).toLocaleTimeString("hr-HR", {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
                     </td>
-                    <td className="px-4 py-3">{item.vrsta_cementa}</td>
-                    <td className="whitespace-nowrap px-4 py-3">
-                      {item.datum_planiranja_odpreme}
+                    <td
+                      className="max-w-[14rem] truncate px-3 py-3"
+                      title={item.vrsta_cementa}
+                    >
+                      {item.vrsta_cementa}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3">
+                    <td className="whitespace-nowrap px-3 py-3">
+                      {item.datum_planiranja_odpreme
+                        ? item.datum_planiranja_odpreme
+                            .split("-")
+                            .reverse()
+                            .join(".")
+                        : "-"}
+                    </td>
+                    <td
+                      className="max-w-[12rem] truncate px-3 py-3"
+                      title={`${item.ime_vozaca || "-"} ${item.prezime_vozaca || ""}`}
+                    >
                       {item.ime_vozaca || "-"} {item.prezime_vozaca || ""}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3">
+                    <td className="whitespace-nowrap px-3 py-3">
                       {item.registarske_oznake || "-"}
                     </td>
-                    <td className="px-4 py-3 font-semibold text-brand-red">
+                    <td className="whitespace-nowrap px-3 py-3 font-semibold text-brand-red">
                       {item.status}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-2">
+                    <td className="whitespace-nowrap px-3 py-3">
+                      <div className="flex flex-nowrap gap-2">
                         {role !== "buyer" && (
                           <button
                             type="button"
@@ -325,8 +362,9 @@ export default function AnnouncementsList({
                         )}
                         {role === "buyer" && (
                           <button
-                            onClick={() => deleteAnnouncement(item.id)}
-                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 hover:bg-red-100"
+                            type="button"
+                            onClick={() => openDeleteModal(item)}
+                            className="whitespace-nowrap rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 hover:bg-red-100"
                           >
                             Obriši
                           </button>
@@ -548,6 +586,57 @@ export default function AnnouncementsList({
                 className="rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {statusLoading ? "Spremanje..." : "Potvrdi promjenu"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/60 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-announcement-title"
+            className="w-full max-w-lg rounded-3xl border border-red-300 bg-white p-6 shadow-2xl shadow-black/10"
+          >
+            <h3
+              id="delete-announcement-title"
+              className="text-lg font-semibold text-gray-900"
+            >
+              Potvrda brisanja
+            </h3>
+            <p className="mt-3 text-gray-700">
+              Jeste li sigurni da želite obrisati najavu za{" "}
+              <span className="font-semibold text-gray-900">
+                {deleteTarget.firma}
+              </span>{" "}
+              ({deleteTarget.vrsta_cementa}, planirano{" "}
+              {deleteTarget.datum_planiranja_odpreme
+                ? deleteTarget.datum_planiranja_odpreme
+                    .split("-")
+                    .reverse()
+                    .join(".")
+                : "-"}
+              )?
+            </p>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={deleteLoading}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Izađi
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteAnnouncement}
+                disabled={deleteLoading}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deleteLoading ? "Brisanje..." : "Obriši"}
               </button>
             </div>
           </div>

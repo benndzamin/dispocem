@@ -13,7 +13,14 @@ const maxDate = new Date();
 maxDate.setDate(maxDate.getDate() + 30);
 const maxDateStr = toDateInputValue(maxDate);
 
-export default function AnnouncementForm({ currentUser, onCreated, onResult, buyerProfile, role, buyers }) {
+export default function AnnouncementForm({
+  currentUser,
+  onCreated,
+  onResult,
+  buyerProfile,
+  role,
+  buyers,
+}) {
   const isBuyer = role === "buyer";
 
   const [vrstaCementa, setVrstaCementa] = useState("");
@@ -31,11 +38,14 @@ export default function AnnouncementForm({ currentUser, onCreated, onResult, buy
   const allowedCementTypes = effectiveBuyerProfile?.dozvoljeni_artikli || [];
 
   const normalizedBuyerQuery = buyerQuery.trim().toLowerCase();
-  const buyerSuggestions = !isBuyer && normalizedBuyerQuery
-    ? (buyers || [])
-        .filter((buyer) => buyer.naziv_firme?.toLowerCase().includes(normalizedBuyerQuery))
-        .slice(0, 6)
-    : [];
+  const buyerSuggestions =
+    !isBuyer && normalizedBuyerQuery
+      ? (buyers || [])
+          .filter((buyer) =>
+            buyer.naziv_firme?.toLowerCase().includes(normalizedBuyerQuery),
+          )
+          .slice(0, 6)
+      : [];
 
   const handleBuyerQueryChange = (value) => {
     setBuyerQuery(value);
@@ -83,19 +93,41 @@ export default function AnnouncementForm({ currentUser, onCreated, onResult, buy
     setSelectedBuyer(null);
     onCreated?.();
     onResult?.("Najava je uspješno kreirana.", "success");
+
+    supabase.functions
+      .invoke("send-announcement-email", {
+        body: {
+          firma: payload.firma,
+          vrstaCementa: payload.vrsta_cementa,
+          datumPlaniranja: payload.datum_planiranja_odpreme,
+          imeVozaca: payload.ime_vozaca,
+          prezimeVozaca: payload.prezime_vozaca,
+          registarskeOznake: payload.registarske_oznake,
+          buyerEmail: effectiveBuyerProfile?.email,
+        },
+      })
+      .catch((err) => console.error("Slanje emaila nije uspjelo:", err));
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-gray-200 bg-white p-6">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-4 rounded-xl border border-gray-200 bg-white p-6"
+    >
       <div className="flex items-center justify-between border-b border-gray-200 pb-3">
-        <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Nova najava otpreme</h3>
+        <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">
+          Nova najava otpreme
+        </h3>
         {!isBuyer && (
-          <span className={`text-xs px-2.5 py-1 rounded-full border font-medium select-none ${
-            effectiveBuyerProfile?.announcement_required
-              ? "bg-amber-50 text-amber-700 border-amber-200"
-              : "bg-emerald-50 text-emerald-700 border-emerald-200"
-          }`}>
-            Najava obavezna: {effectiveBuyerProfile?.announcement_required ? "DA" : "NE"}
+          <span
+            className={`text-xs px-2.5 py-1 rounded-full border font-medium select-none ${
+              effectiveBuyerProfile?.announcement_required
+                ? "bg-amber-50 text-amber-700 border-amber-200"
+                : "bg-emerald-50 text-emerald-700 border-emerald-200"
+            }`}
+          >
+            Najava obavezna:{" "}
+            {effectiveBuyerProfile?.announcement_required ? "DA" : "NE"}
           </span>
         )}
       </div>
@@ -103,7 +135,9 @@ export default function AnnouncementForm({ currentUser, onCreated, onResult, buy
       <div className="grid gap-4 md:grid-cols-2">
         {!isBuyer && (
           <div className="relative">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">Kupac</label>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Kupac
+            </label>
             <input
               value={buyerQuery}
               onChange={(e) => handleBuyerQueryChange(e.target.value)}
@@ -132,46 +166,95 @@ export default function AnnouncementForm({ currentUser, onCreated, onResult, buy
           </div>
         )}
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">Vrsta cementa</label>
-          <select value={vrstaCementa} onChange={(e) => setVrstaCementa(e.target.value)} required className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100">
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Vrsta cementa
+          </label>
+          <select
+            value={vrstaCementa}
+            onChange={(e) => setVrstaCementa(e.target.value)}
+            required
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+          >
             <option value="">Odaberi</option>
             {allowedCementTypes.length > 0 ? (
               allowedCementTypes.map((name) => (
-                <option key={name} value={name}>{name}</option>
+                <option key={name} value={name}>
+                  {name}
+                </option>
               ))
             ) : (
-              <option value="" disabled>Nemate dozvoljene vrste cementa</option>
+              <option value="" disabled>
+                Nemate dozvoljene vrste cementa
+              </option>
             )}
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">Datum planiranja otpreme</label>
-          <input type="date" value={datumPlaniranja} min={todayStr} max={maxDateStr} onChange={(e) => setDatumPlaniranja(e.target.value)} required className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100" />
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Datum planiranja otpreme
+          </label>
+          <input
+            type="date"
+            value={datumPlaniranja}
+            min={todayStr}
+            max={maxDateStr}
+            onChange={(e) => setDatumPlaniranja(e.target.value)}
+            required
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+          />
         </div>
         {!isBuyer && (
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">Status</label>
-            <input value="pending" readOnly className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-gray-500" />
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Status
+            </label>
+            <input
+              value="pending"
+              readOnly
+              className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-gray-500"
+            />
           </div>
         )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">Ime vozača</label>
-          <input value={imeVozaca} onChange={(e) => setImeVozaca(e.target.value)} className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100" />
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Ime vozača
+          </label>
+          <input
+            value={imeVozaca}
+            onChange={(e) => setImeVozaca(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+          />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">Prezime vozača</label>
-          <input value={prezimeVozaca} onChange={(e) => setPrezimeVozaca(e.target.value)} className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100" />
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Prezime vozača
+          </label>
+          <input
+            value={prezimeVozaca}
+            onChange={(e) => setPrezimeVozaca(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+          />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">Registarske oznake</label>
-          <input value={registarskeOznake} onChange={(e) => setRegistarskeOznake(e.target.value)} className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100" />
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Registarske oznake
+          </label>
+          <input
+            value={registarskeOznake}
+            onChange={(e) => setRegistarskeOznake(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+          />
         </div>
       </div>
 
-      <button type="submit" disabled={loading || (!isBuyer && !selectedBuyer)} className="w-full rounded-lg bg-brand-red hover:bg-brand-red-dark px-4 py-2 font-semibold text-white transition-colors disabled:opacity-50">
+      <button
+        type="submit"
+        disabled={loading || (!isBuyer && !selectedBuyer)}
+        className="w-full rounded-lg bg-brand-red hover:bg-brand-red-dark px-4 py-2 font-semibold text-white transition-colors disabled:opacity-50"
+      >
         {loading ? "Spremanje..." : "Kreiraj najavu"}
       </button>
     </form>

@@ -24,16 +24,12 @@ export default function KupacDashboard({ user, userProfile }) {
           {notification.message}
         </div>
       )}
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => setAnnouncementModalOpen(true)}
-          className="rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark"
-        >
-          Nova najava
-        </button>
-      </div>
-      <AnnouncementsList role="buyer" currentUser={user} refreshKey={refreshKey} />
+      <AnnouncementsList
+        role="buyer"
+        currentUser={user}
+        refreshKey={refreshKey}
+        onCreateNew={() => setAnnouncementModalOpen(true)}
+      />
 
       {announcementModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4">
