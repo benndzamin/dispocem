@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
-import { CEMENT_CATALOG } from "../constants/cementCatalog";
 
 export default function BuyerManagement({
   showNotification = () => {},
   hideTopBorder = false,
 }) {
   const [buyers, setBuyers] = useState([]);
-  const [cementTypes, setCementTypes] = useState(CEMENT_CATALOG);
+  const [cementTypes, setCementTypes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedBuyer, setSelectedBuyer] = useState(null);
   const [email, setEmail] = useState("");
@@ -82,20 +81,14 @@ export default function BuyerManagement({
       .order("name", { ascending: true });
 
     if (!error) {
-      const dbTypes = data || [];
-      const dbNames = new Set(dbTypes.map((c) => c.name));
-
-      // Spoji katalog i bazu, izbjegni duplikate po imenu
-      const catalogTypes = CEMENT_CATALOG.filter((c) => !dbNames.has(c.value));
-
-      const combined = [
-        ...catalogTypes,
-        ...dbTypes.map((c) => ({ value: c.name, label: c.name, id: c.id })),
-      ];
-
-      setCementTypes(combined);
-    } else {
-      setCementTypes(CEMENT_CATALOG);
+      setCementTypes(
+        (data || []).map((c) => ({
+          value: c.name,
+          label: c.name,
+          id: c.id,
+          na_stanju: c.na_stanju,
+        })),
+      );
     }
   };
 
@@ -354,6 +347,11 @@ export default function BuyerManagement({
                         className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red"
                       />
                       {cement.label}
+                      {cement.na_stanju === false && (
+                        <span className="text-xs text-gray-400">
+                          (nema na stanju)
+                        </span>
+                      )}
                     </label>
                   ))}
                 </div>

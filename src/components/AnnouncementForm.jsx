@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 
 function toDateInputValue(date) {
@@ -33,6 +33,21 @@ export default function AnnouncementForm({
   const [buyerQuery, setBuyerQuery] = useState("");
   const [selectedBuyer, setSelectedBuyer] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [inStockNames, setInStockNames] = useState(new Set());
+
+  useEffect(() => {
+    const fetchInStock = async () => {
+      const { data, error } = await supabase
+        .from("cement_types")
+        .select("name")
+        .eq("is_active", true)
+        .eq("na_stanju", true);
+      if (!error) {
+        setInStockNames(new Set((data || []).map((c) => c.name)));
+      }
+    };
+    fetchInStock();
+  }, []);
 
   const effectiveBuyerProfile = isBuyer ? buyerProfile : selectedBuyer;
   const allowedCementTypes = effectiveBuyerProfile?.dozvoljeni_artikli || [];
@@ -63,6 +78,12 @@ export default function AnnouncementForm({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!inStockNames.has(vrstaCementa)) {
+      onResult?.("Vrsta cementa trenutno nije na stanju.", "error");
+      return;
+    }
+
     setLoading(true);
 
     const payload = {
@@ -80,7 +101,7 @@ export default function AnnouncementForm({
     setLoading(false);
 
     if (error) {
-      onResult?.("Greška pri kreiranju najave.", "error");
+      onResult?.("Greška pri kreiranju najave: " + error.message, "error");
       return;
     }
 
@@ -178,8 +199,13 @@ export default function AnnouncementForm({
             <option value="">Odaberi</option>
             {allowedCementTypes.length > 0 ? (
               allowedCementTypes.map((name) => (
-                <option key={name} value={name}>
+                <option
+                  key={name}
+                  value={name}
+                  disabled={!inStockNames.has(name)}
+                >
                   {name}
+                  {!inStockNames.has(name) ? " (nema na stanju)" : ""}
                 </option>
               ))
             ) : (

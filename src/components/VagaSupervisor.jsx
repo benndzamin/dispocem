@@ -3,10 +3,12 @@ import { supabase } from "../supabaseClient";
 import BuyerManagement from "./BuyerManagement";
 import AnnouncementsList from "./AnnouncementsList";
 import AnnouncementForm from "./AnnouncementForm";
+import CementCatalogManager from "./CementCatalogManager";
 
 const tabs = [
   { key: "home", label: "Početna" },
   { key: "buyers", label: "Kupci" },
+  { key: "cement", label: "Vrste cementa" },
   { key: "announcements", label: "Najave" },
 ];
 
@@ -270,6 +272,8 @@ export default function VagaSupervisor({ user }) {
             </div>
           </div>
         )}
+
+        {activeTab === "cement" && <CementCatalogManager />}
 
         {activeTab === "announcements" && (
           <AnnouncementsList
