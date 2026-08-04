@@ -6,3 +6,12 @@
   --color-brand-dark: #2b2b2e;
   --color-brand-dark-hover: #17171a;
 }
+
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

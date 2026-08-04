@@ -23,6 +23,7 @@ webpush.setVapidDetails(
 );
 
 const STATUS_LABELS: Record<string, string> = {
+  awaiting_approval: "Čeka odobrenje",
   pending: "Na čekanju",
   in_progress: "U toku",
   completed: "Završeno",

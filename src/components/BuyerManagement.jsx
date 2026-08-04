@@ -15,6 +15,7 @@ export default function BuyerManagement({
   const [adresa, setAdresa] = useState("");
   const [dozvoljeniArtikli, setDozvoljeniArtikli] = useState([]);
   const [announcementRequired, setAnnouncementRequired] = useState(true);
+  const [approvalRequired, setApprovalRequired] = useState(false);
   const [message, setMessage] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("create");
@@ -31,6 +32,7 @@ export default function BuyerManagement({
     setDozvoljeniArtikli([]);
     setMessage("");
     setAnnouncementRequired(true);
+    setApprovalRequired(false);
     setModalMode("create");
   };
 
@@ -43,6 +45,7 @@ export default function BuyerManagement({
       setAdresa(buyer.adresa || "");
       setDozvoljeniArtikli(buyer.dozvoljeni_artikli || []);
       setAnnouncementRequired(buyer.announcement_required ?? true);
+      setApprovalRequired(buyer.approval_required ?? false);
       setModalMode("edit");
     } else {
       resetForm();
@@ -140,6 +143,7 @@ export default function BuyerManagement({
           adresa,
           dozvoljeni_artikli: dozvoljeniArtikli,
           announcement_required: announcementRequired,
+          approval_required: approvalRequired,
         });
         if (error) throw error;
         resetForm();
@@ -173,6 +177,7 @@ export default function BuyerManagement({
             adresa,
             dozvoljeni_artikli: dozvoljeniArtikli,
             announcement_required: announcementRequired,
+            approval_required: approvalRequired,
           },
         ],
         { onConflict: "id" },
@@ -369,6 +374,18 @@ export default function BuyerManagement({
                 </label>
               </div>
 
+              <div className="flex items-center gap-2 text-sm text-gray-900">
+                <input
+                  type="checkbox"
+                  checked={approvalRequired}
+                  onChange={(e) => setApprovalRequired(e.target.checked)}
+                  className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red"
+                />
+                <label className="text-xs uppercase text-gray-500 font-semibold">
+                  Zahtijeva odobrenje
+                </label>
+              </div>
+
               <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
                 <button
                   type="button"
@@ -434,6 +451,12 @@ export default function BuyerManagement({
                   </th>
                   <th
                     scope="col"
+                    className="border-b border-gray-200 px-4 py-3 font-semibold whitespace-nowrap"
+                  >
+                    Zahtijeva odobrenje
+                  </th>
+                  <th
+                    scope="col"
                     className="relative border-b border-gray-200 px-4 py-3"
                   >
                     <span className="sr-only">Uredi</span>
@@ -460,6 +483,14 @@ export default function BuyerManagement({
                       <input
                         type="checkbox"
                         checked={buyer.announcement_required}
+                        disabled
+                        className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red disabled:cursor-not-allowed disabled:opacity-70"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={buyer.approval_required}
                         disabled
                         className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red disabled:cursor-not-allowed disabled:opacity-70"
                       />
@@ -519,6 +550,15 @@ export default function BuyerManagement({
                     className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red disabled:cursor-not-allowed disabled:opacity-70"
                   />
                   Zahtijeva najavu
+                </label>
+                <label className="mt-2 flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={buyer.approval_required}
+                    disabled
+                    className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red disabled:cursor-not-allowed disabled:opacity-70"
+                  />
+                  Zahtijeva odobrenje
                 </label>
               </div>
             ))}

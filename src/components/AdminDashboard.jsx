@@ -80,7 +80,8 @@ export default function AdminDashboard({ user }) {
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-gray-200 bg-white p-6">
-        <div className="flex flex-col gap-4 border-b border-gray-200 sm:flex-row sm:items-end sm:justify-between">
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 border-b border-gray-200" />
           <div className="pb-4">
             <h2 className="text-2xl font-semibold text-gray-900">
               Admin dashboard
@@ -90,21 +91,24 @@ export default function AdminDashboard({ user }) {
             </p>
           </div>
 
-          <div className="flex items-end gap-2 overflow-x-auto flex-nowrap">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveTab(tab.key)}
-                className={`-mb-px shrink-0 rounded-t-lg border px-4 py-2.5 text-sm transition-colors ${
-                  activeTab === tab.key
-                    ? "relative z-10 border-gray-200 border-b-white bg-white font-semibold text-brand-red"
-                    : "border-transparent border-b-gray-200 bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="scrollbar-hide overflow-x-auto">
+            <div className="relative flex w-max items-end gap-2 flex-nowrap">
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 border-b border-gray-200" />
+              {tabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`relative shrink-0 rounded-t-lg border px-4 py-2.5 text-sm transition-colors ${
+                    activeTab === tab.key
+                      ? "border-gray-200 border-b-white bg-white font-semibold text-brand-red"
+                      : "border-transparent border-b-gray-200 bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

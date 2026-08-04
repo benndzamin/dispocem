@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 
-const STATUS_ORDER = { pending: 0, in_progress: 1, completed: 2 };
+const STATUS_ORDER = {
+  awaiting_approval: 0,
+  pending: 1,
+  in_progress: 2,
+  completed: 3,
+};
 
 const COLUMNS = [
   { key: "firma", label: "Firma", accessor: (item) => item.firma || "" },
@@ -77,6 +82,8 @@ export default function AnnouncementsList({
 
     if (role === "buyer") {
       query = query.eq("created_by", currentUser?.id);
+    } else if (role === "wb_supervisor" || role === "wb_operator") {
+      query = query.neq("status", "awaiting_approval");
     }
 
     const { data, error } = await query;

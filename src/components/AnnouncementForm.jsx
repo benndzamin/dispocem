@@ -94,7 +94,9 @@ export default function AnnouncementForm({
       ime_vozaca: imeVozaca.trim() || null,
       prezime_vozaca: prezimeVozaca.trim() || null,
       registarske_oznake: registarskeOznake.trim() || null,
-      status: "pending",
+      status: effectiveBuyerProfile?.approval_required
+        ? "awaiting_approval"
+        : "pending",
     };
 
     const { error } = await supabase.from("announcements").insert([payload]);

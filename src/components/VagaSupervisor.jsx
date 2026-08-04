@@ -5,13 +5,16 @@ import AnnouncementsList from "./AnnouncementsList";
 import AnnouncementForm from "./AnnouncementForm";
 import CementCatalogManager from "./CementCatalogManager";
 import NewAnnouncementAlerts from "./NewAnnouncementAlerts";
+import PendingApprovalsList from "./PendingApprovalsList";
 import useNewAnnouncementAlerts from "../hooks/useNewAnnouncementAlerts";
+import usePendingApprovalsCount from "../hooks/usePendingApprovalsCount";
 
 const tabs = [
-  { key: "home", label: "Početna" },
-  { key: "buyers", label: "Kupci" },
-  { key: "cement", label: "Vrste cementa" },
-  { key: "announcements", label: "Najave" },
+  { key: "home", label: "Početna", mobileLabel: "Početna" },
+  { key: "buyers", label: "Kupci", mobileLabel: "Kupci" },
+  { key: "cement", label: "Vrste cementa", mobileLabel: "Cement" },
+  { key: "announcements", label: "Najave", mobileLabel: "Najave" },
+  { key: "approvals", label: "Odobrenja", mobileLabel: "Odobr." },
 ];
 
 export default function VagaSupervisor({ user }) {
@@ -30,8 +33,11 @@ export default function VagaSupervisor({ user }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [announcementModalOpen, setAnnouncementModalOpen] = useState(false);
-  const { alerts: newAnnouncementAlerts, dismiss: dismissNewAnnouncementAlert } =
-    useNewAnnouncementAlerts(user?.id, "wb_supervisor");
+  const {
+    alerts: newAnnouncementAlerts,
+    dismiss: dismissNewAnnouncementAlert,
+  } = useNewAnnouncementAlerts(user?.id, "wb_supervisor");
+  const pendingApprovalsCount = usePendingApprovalsCount();
 
   useEffect(() => {
     const fetchSupervisorStats = async () => {
@@ -161,7 +167,8 @@ export default function VagaSupervisor({ user }) {
       )}
 
       <div className="rounded-2xl border border-gray-200 bg-white p-6">
-        <div className="flex flex-col gap-4 border-b border-gray-200 sm:flex-row sm:items-end sm:justify-between">
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 border-b border-gray-200" />
           <div className="pb-4">
             <h2 className="text-2xl font-semibold text-gray-900">
               Supervisor dashboard
@@ -171,21 +178,32 @@ export default function VagaSupervisor({ user }) {
             </p>
           </div>
 
-          <div className="flex items-end gap-2 overflow-x-auto flex-nowrap">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveTab(tab.key)}
-                className={`-mb-px shrink-0 rounded-t-lg border px-4 py-2.5 text-sm transition-colors ${
-                  activeTab === tab.key
-                    ? "relative z-10 border-gray-200 border-b-white bg-white font-semibold text-brand-red"
-                    : "border-transparent border-b-gray-200 bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="scrollbar-hide pt-2">
+            <div className="relative flex w-max items-end gap-1 flex-nowrap sm:gap-2">
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 border-b border-gray-200" />
+              {tabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`relative shrink-0 rounded-t-lg border px-3 py-2 text-sm transition-colors sm:px-4 sm:py-2.5 ${
+                    activeTab === tab.key
+                      ? "border-gray-200 border-b-white bg-white font-semibold text-brand-red"
+                      : "border-transparent border-b-gray-200 bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+                  }`}
+                >
+                  <span className="sm:hidden">{tab.mobileLabel}</span>
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  {tab.key === "approvals" && pendingApprovalsCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 z-20 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-red px-1 text-[11px] font-semibold text-white overflow-hidden">
+                      {pendingApprovalsCount > 99
+                        ? "99+"
+                        : pendingApprovalsCount}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -294,6 +312,8 @@ export default function VagaSupervisor({ user }) {
             newAlerts={newAnnouncementAlerts}
           />
         )}
+
+        {activeTab === "approvals" && <PendingApprovalsList />}
 
         {activeTab === "buyers" && (
           <div className="space-y-6">
