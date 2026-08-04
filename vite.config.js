@@ -12,6 +12,10 @@ export default defineConfig({
       filename: 'sw.js',
       injectRegister: 'auto',
       registerType: 'autoUpdate',
+      devOptions: {
+        enabled: true,
+        type: 'module',
+      },
       includeAssets: ['favicon.svg', 'logo.png', 'icons.svg'],
       manifest: {
         name: 'Dispocem Logistics',
