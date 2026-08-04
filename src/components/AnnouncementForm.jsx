@@ -128,6 +128,15 @@ export default function AnnouncementForm({
         },
       })
       .catch((err) => console.error("Slanje emaila nije uspjelo:", err));
+
+    supabase.functions
+      .invoke("send-push-notification", {
+        body: {
+          firma: payload.firma,
+          vrstaCementa: payload.vrsta_cementa,
+        },
+      })
+      .catch((err) => console.error("Slanje push notifikacije nije uspjelo:", err));
   };
 
   return (
