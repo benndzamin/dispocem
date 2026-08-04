@@ -34,8 +34,9 @@ Deno.serve(async (req) => {
   }
 
   const payload = await req.json();
+  const isDeleted = payload?.action === "deleted";
 
-  if (!payload?.userId || !payload?.newStatus) {
+  if (!payload?.userId || (!isDeleted && !payload?.newStatus)) {
     return new Response(
       JSON.stringify({ error: "Nedostaju obavezna polja." }),
       {
@@ -59,14 +60,21 @@ Deno.serve(async (req) => {
     });
   }
 
-  const statusLabel = STATUS_LABELS[payload.newStatus] || payload.newStatus;
-  const notificationPayload = JSON.stringify({
-    title: "Status najave promijenjen",
-    body: payload.vrstaCementa
-      ? `Vaša najava (${payload.vrstaCementa}) je sada: ${statusLabel}`
-      : `Status vaše najave je sada: ${statusLabel}`,
-    url: "/",
-  });
+  const notificationPayload = isDeleted
+    ? JSON.stringify({
+        title: "Najava obrisana",
+        body: payload.vrstaCementa
+          ? `Vaša najava (${payload.vrstaCementa}) je obrisana.`
+          : "Vaša najava je obrisana.",
+        url: "/",
+      })
+    : JSON.stringify({
+        title: "Status najave promijenjen",
+        body: payload.vrstaCementa
+          ? `Vaša najava (${payload.vrstaCementa}) je sada: ${STATUS_LABELS[payload.newStatus] || payload.newStatus}`
+          : `Status vaše najave je sada: ${STATUS_LABELS[payload.newStatus] || payload.newStatus}`,
+        url: "/",
+      });
 
   let sent = 0;
   const staleIds: string[] = [];

@@ -1,11 +1,15 @@
 import { useState } from "react";
 import AnnouncementForm from "./AnnouncementForm";
 import AnnouncementsList from "./AnnouncementsList";
+import NewAnnouncementAlerts from "./NewAnnouncementAlerts";
+import useMyAnnouncementAlerts from "../hooks/useMyAnnouncementAlerts";
 
 export default function KupacDashboard({ user, userProfile }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [announcementModalOpen, setAnnouncementModalOpen] = useState(false);
   const [notification, setNotification] = useState(null);
+  const { alerts: myAlerts, dismiss: dismissMyAlert } =
+    useMyAnnouncementAlerts(user?.id);
 
   const showNotification = (message, type) => {
     setNotification({ message, type });
@@ -14,6 +18,7 @@ export default function KupacDashboard({ user, userProfile }) {
 
   return (
     <div className="space-y-6">
+      <NewAnnouncementAlerts alerts={myAlerts} onDismiss={dismissMyAlert} />
       {notification && (
         <div
           className={`fixed right-4 top-4 z-[60] rounded-lg px-4 py-3 text-sm font-medium text-white shadow-lg ${
@@ -29,6 +34,7 @@ export default function KupacDashboard({ user, userProfile }) {
         currentUser={user}
         refreshKey={refreshKey}
         onCreateNew={() => setAnnouncementModalOpen(true)}
+        newAlerts={myAlerts}
       />
 
       {announcementModalOpen && (

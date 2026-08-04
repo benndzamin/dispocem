@@ -3,7 +3,13 @@ import { supabase } from "../supabaseClient";
 
 const DISPLAY_MS = 60000;
 
-export default function useNewAnnouncementAlerts(currentUserId, viewerRole) {
+const STATUS_LABELS = {
+  pending: "Na čekanju",
+  in_progress: "U toku",
+  completed: "Završeno",
+};
+
+export default function useMyAnnouncementAlerts(currentUserId) {
   const [alerts, setAlerts] = useState([]);
   const timeoutsRef = useRef(new Map());
 
@@ -17,6 +23,8 @@ export default function useNewAnnouncementAlerts(currentUserId, viewerRole) {
   };
 
   useEffect(() => {
+    if (!currentUserId) return;
+
     const addAlert = (alert) => {
       setAlerts((prev) => [...prev, alert]);
 
@@ -28,22 +36,7 @@ export default function useNewAnnouncementAlerts(currentUserId, viewerRole) {
     };
 
     const channel = supabase
-      .channel(`new-announcement-alerts-${crypto.randomUUID()}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "announcements" },
-        (payload) => {
-          const row = payload.new;
-          if (!row || row.created_by === currentUserId) return;
-
-          addAlert({
-            id: row.id,
-            type: "insert",
-            row,
-            message: `${row.firma || "Kupac"} je kreirao/la novu najavu za utovar (${row.vrsta_cementa}).`,
-          });
-        },
-      )
+      .channel(`my-announcement-alerts-${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
         {
@@ -53,23 +46,31 @@ export default function useNewAnnouncementAlerts(currentUserId, viewerRole) {
         },
         (payload) => {
           const row = payload.new;
-          if (!row) return;
-
-          // Operateri ne treba da vide toast kad DRUGI operater obrise
-          // najavu (peer buka) - ali red se i dalje mora ukloniti iz
-          // njihove tabele, zato se alert i dalje dodaje, samo bez poruke.
-          const silent =
-            viewerRole === "wb_operator" && row.deleted_by_role === "wb_operator";
-
-          const who =
-            row.deleted_by_role === "buyer" ? row.firma : row.deleted_by_label;
+          if (!row || row.deleted_by === currentUserId) return;
 
           addAlert({
-            id: `deleted-${row.id}`,
+            id: row.id,
             type: "delete",
             row: { id: row.announcement_id },
-            message: `${who} je obrisao/la najavu za utovar (${row.vrsta_cementa}).`,
-            silent,
+            message: `Vaša najava (${row.vrsta_cementa}) je obrisana.`,
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "announcements" },
+        (payload) => {
+          const row = payload.new;
+          const oldRow = payload.old;
+          if (!row || !oldRow || oldRow.status === row.status) return;
+
+          const label = STATUS_LABELS[row.status] || row.status;
+
+          addAlert({
+            id: `status-${row.id}-${row.status}`,
+            type: "update",
+            row,
+            message: `Vaša najava (${row.vrsta_cementa}) je sada: ${label}.`,
           });
         },
       )
@@ -81,7 +82,7 @@ export default function useNewAnnouncementAlerts(currentUserId, viewerRole) {
       timeouts.forEach((timeoutId) => clearTimeout(timeoutId));
       timeouts.clear();
     };
-  }, [currentUserId, viewerRole]);
+  }, [currentUserId]);
 
   return { alerts, dismiss };
 }

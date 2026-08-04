@@ -100,9 +100,34 @@ export default function AnnouncementsList({
     setAnnouncements((prev) => {
       const existingIds = new Set(prev.map((a) => a.id));
       const toAdd = newAlerts
+        .filter((a) => a.type === "insert")
         .map((a) => a.row)
         .filter((row) => row && !existingIds.has(row.id));
-      return toAdd.length ? [...toAdd, ...prev] : prev;
+      const toRemoveIds = new Set(
+        newAlerts
+          .filter((a) => a.type === "delete")
+          .map((a) => a.row?.id)
+          .filter(Boolean),
+      );
+      const updates = new Map(
+        newAlerts
+          .filter((a) => a.type === "update" && a.row?.id)
+          .map((a) => [a.row.id, a.row]),
+      );
+
+      let next = prev;
+      if (toRemoveIds.size > 0) {
+        next = next.filter((item) => !toRemoveIds.has(item.id));
+      }
+      if (updates.size > 0) {
+        next = next.map((item) =>
+          updates.has(item.id) ? { ...item, ...updates.get(item.id) } : item,
+        );
+      }
+      if (toAdd.length > 0) {
+        next = [...toAdd, ...next];
+      }
+      return next === prev ? prev : next;
     });
   }, [newAlerts]);
 
@@ -164,6 +189,75 @@ export default function AnnouncementsList({
         "error",
       );
       return;
+    }
+
+    const deletedByLabel =
+      role === "buyer"
+        ? deleteTarget.firma
+        : currentUser?.email || "Nepoznat korisnik";
+
+    supabase
+      .rpc("log_announcement_deletion", {
+        p_announcement_id: deleteTarget.id,
+        p_firma: deleteTarget.firma,
+        p_vrsta_cementa: deleteTarget.vrsta_cementa,
+        p_created_by: deleteTarget.created_by,
+        p_deleted_by_label: deletedByLabel,
+        p_deleted_by_role: role,
+      })
+      .then(({ error: logError }) => {
+        if (logError) {
+          console.error("Logovanje brisanja nije uspjelo:", logError);
+        }
+      });
+
+    supabase.functions
+      .invoke("send-push-notification", {
+        body: {
+          action: "deleted",
+          firma: deleteTarget.firma,
+          vrstaCementa: deleteTarget.vrsta_cementa,
+          deletedByLabel,
+          deletedByRole: role,
+        },
+      })
+      .catch((err) =>
+        console.error("Slanje push notifikacije nije uspjelo:", err),
+      );
+
+    const notifyBuyer =
+      deleteTarget.created_by && deleteTarget.created_by !== currentUser?.id;
+    const notifySupervisors = role === "wb_operator";
+
+    if (notifyBuyer) {
+      supabase.functions
+        .invoke("send-status-push-notification", {
+          body: {
+            action: "deleted",
+            userId: deleteTarget.created_by,
+            vrstaCementa: deleteTarget.vrsta_cementa,
+          },
+        })
+        .catch((err) =>
+          console.error("Slanje push notifikacije kupcu nije uspjelo:", err),
+        );
+    }
+
+    if (notifyBuyer || notifySupervisors) {
+      supabase.functions
+        .invoke("send-announcement-email", {
+          body: {
+            action: "deleted",
+            firma: deleteTarget.firma,
+            vrstaCementa: deleteTarget.vrsta_cementa,
+            deletedByLabel,
+            ...(notifyBuyer ? { buyerId: deleteTarget.created_by } : {}),
+            ...(notifySupervisors ? { notifySupervisors: true } : {}),
+          },
+        })
+        .catch((err) =>
+          console.error("Slanje emaila nije uspjelo:", err),
+        );
     }
 
     setDeleteTarget(null);

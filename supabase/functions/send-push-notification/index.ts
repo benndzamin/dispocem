@@ -41,10 +41,18 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
+  // Kad operater obrise najavu, ne obavjestavamo druge operatere (peer buku) -
+  // ide samo supervizoru. Kreiranje i brisanje od strane admina/supervizora i
+  // dalje ide objema ulogama, kao i do sad.
+  const targetRoles =
+    payload.action === "deleted" && payload.deletedByRole === "wb_operator"
+      ? ["wb_supervisor"]
+      : ["wb_supervisor", "wb_operator"];
+
   const { data: recipients, error: recipientsError } = await supabase
     .from("users")
     .select("id, push_subscriptions(id, endpoint, p256dh, auth)")
-    .in("rola", ["wb_supervisor", "wb_operator"]);
+    .in("rola", targetRoles);
 
   if (recipientsError) {
     return new Response(JSON.stringify({ error: recipientsError.message }), {
@@ -57,9 +65,12 @@ Deno.serve(async (req) => {
     (u) => u.push_subscriptions || [],
   );
 
+  const isDeleted = payload.action === "deleted";
   const notificationPayload = JSON.stringify({
-    title: "Nova najava otpreme",
-    body: `${payload.firma} — ${payload.vrstaCementa}`,
+    title: isDeleted ? "Najava obrisana" : "Nova najava otpreme",
+    body: isDeleted
+      ? `${payload.deletedByLabel || payload.firma} je obrisao/la najavu za utovar (${payload.vrstaCementa}).`
+      : `${payload.firma} — ${payload.vrstaCementa}`,
     url: "/",
   });
 

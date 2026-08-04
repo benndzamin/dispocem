@@ -31,7 +31,7 @@ export default function VagaSupervisor({ user }) {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [announcementModalOpen, setAnnouncementModalOpen] = useState(false);
   const { alerts: newAnnouncementAlerts, dismiss: dismissNewAnnouncementAlert } =
-    useNewAnnouncementAlerts(user?.id);
+    useNewAnnouncementAlerts(user?.id, "wb_supervisor");
 
   useEffect(() => {
     const fetchSupervisorStats = async () => {

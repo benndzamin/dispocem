@@ -1,3 +1,5 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -6,6 +8,8 @@ const corsHeaders = {
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const CEMENTARA_EMAIL = Deno.env.get("CEMENTARA_EMAIL");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const FROM_ADDRESS = "Dispocem <onboarding@resend.dev>";
 
 function buildDetailsHtml(payload: Record<string, unknown>) {
@@ -49,6 +53,84 @@ Deno.serve(async (req) => {
   }
 
   const payload = await req.json();
+
+  if (payload?.action === "deleted") {
+    if (!payload?.vrstaCementa || (!payload?.buyerId && !payload?.notifySupervisors)) {
+      return new Response(
+        JSON.stringify({ error: "Nedostaju obavezna polja." }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+    const result = {
+      buyerSent: false,
+      buyerError: null as string | null,
+      supervisorsSent: 0,
+      supervisorsError: null as string | null,
+    };
+
+    if (payload.buyerId) {
+      const { data: buyer, error: buyerError } = await supabase
+        .from("users")
+        .select("email")
+        .eq("id", payload.buyerId)
+        .maybeSingle();
+
+      if (buyerError || !buyer?.email) {
+        result.buyerError = buyerError?.message || "Kupac nije pronađen.";
+      } else {
+        try {
+          await sendEmail(
+            buyer.email,
+            "Najava otpreme obrisana",
+            `<p>Vaša najava otpreme (${payload.vrstaCementa}) je obrisana.</p>`,
+          );
+          result.buyerSent = true;
+        } catch (err) {
+          result.buyerError = err instanceof Error ? err.message : String(err);
+        }
+      }
+    }
+
+    if (payload.notifySupervisors) {
+      const { data: supervisors, error: supervisorsError } = await supabase
+        .from("users")
+        .select("email")
+        .eq("rola", "wb_supervisor");
+
+      if (supervisorsError) {
+        result.supervisorsError = supervisorsError.message;
+      } else {
+        const label = payload.deletedByLabel || "Operater";
+        await Promise.all(
+          (supervisors || [])
+            .filter((s) => s.email)
+            .map(async (s) => {
+              try {
+                await sendEmail(
+                  s.email,
+                  `Najava obrisana - ${payload.firma || ""}`,
+                  `<p>${label} je obrisao/la najavu za utovar (${payload.vrstaCementa}).</p>`,
+                );
+                result.supervisorsSent++;
+              } catch (err) {
+                result.supervisorsError =
+                  err instanceof Error ? err.message : String(err);
+              }
+            }),
+        );
+      }
+    }
+
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   if (!payload?.firma || !payload?.vrstaCementa || !payload?.datumPlaniranja) {
     return new Response(
