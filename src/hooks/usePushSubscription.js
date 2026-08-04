@@ -28,17 +28,11 @@ export default function usePushSubscription(userId) {
       }
 
       const json = existing.toJSON();
-      const { error: dbError } = await supabase
-        .from("push_subscriptions")
-        .upsert(
-          {
-            user_id: userId,
-            endpoint: json.endpoint,
-            p256dh: json.keys.p256dh,
-            auth: json.keys.auth,
-          },
-          { onConflict: "endpoint" },
-        );
+      const { error: dbError } = await supabase.rpc("claim_push_subscription", {
+        p_endpoint: json.endpoint,
+        p_p256dh: json.keys.p256dh,
+        p_auth: json.keys.auth,
+      });
       setSubscribed(!dbError);
     });
   }, [supported, userId]);
@@ -79,17 +73,11 @@ export default function usePushSubscription(userId) {
       });
 
       const json = subscription.toJSON();
-      const { error: dbError } = await supabase
-        .from("push_subscriptions")
-        .upsert(
-          {
-            user_id: userId,
-            endpoint: json.endpoint,
-            p256dh: json.keys.p256dh,
-            auth: json.keys.auth,
-          },
-          { onConflict: "endpoint" },
-        );
+      const { error: dbError } = await supabase.rpc("claim_push_subscription", {
+        p_endpoint: json.endpoint,
+        p_p256dh: json.keys.p256dh,
+        p_auth: json.keys.auth,
+      });
       if (dbError) throw dbError;
 
       setSubscribed(true);
@@ -101,5 +89,25 @@ export default function usePushSubscription(userId) {
     }
   };
 
-  return { supported, subscribed, loading, error, subscribe };
+  const unsubscribe = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        const { endpoint } = subscription;
+        await subscription.unsubscribe();
+        await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
+      }
+      setSubscribed(false);
+    } catch (err) {
+      console.error("Gašenje push pretplate nije uspjelo:", err);
+      setError(err?.message || "Isključivanje nije uspjelo.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { supported, subscribed, loading, error, subscribe, unsubscribe };
 }

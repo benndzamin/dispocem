@@ -6,6 +6,7 @@ import KupacDashboard from "./components/KupacDashboard";
 import VagaSupervisor from "./components/VagaSupervisor";
 import VagaOperator from "./components/VagaOperator";
 import UserBadge from "./components/UserBadge";
+import PushSubscribeButton from "./components/PushSubscribeButton";
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -89,6 +90,12 @@ export default function App() {
             </h1>
             <div className="mt-1.5 flex flex-wrap items-center gap-2 sm:gap-3">
               <UserBadge user={session.user} userProfile={userProfile} />
+
+              {(userProfile?.rola === "wb_supervisor" ||
+                userProfile?.rola === "wb_operator" ||
+                userProfile?.rola === "buyer") && (
+                <PushSubscribeButton userId={session.user.id} />
+              )}
 
               {/* Profi Logout Button */}
               <button

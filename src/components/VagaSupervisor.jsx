@@ -5,7 +5,6 @@ import AnnouncementsList from "./AnnouncementsList";
 import AnnouncementForm from "./AnnouncementForm";
 import CementCatalogManager from "./CementCatalogManager";
 import NewAnnouncementAlerts from "./NewAnnouncementAlerts";
-import PushSubscribeButton from "./PushSubscribeButton";
 import useNewAnnouncementAlerts from "../hooks/useNewAnnouncementAlerts";
 
 const tabs = [
@@ -170,9 +169,6 @@ export default function VagaSupervisor({ user }) {
             <p className="text-sm text-gray-500">
               Upravljajte najavama, kupcima i njihovim dozvolama.
             </p>
-            <div className="mt-2">
-              <PushSubscribeButton userId={user?.id} />
-            </div>
           </div>
 
           <div className="flex items-end gap-2 overflow-x-auto flex-nowrap">

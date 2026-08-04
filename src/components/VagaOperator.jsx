@@ -1,6 +1,5 @@
 import AnnouncementsList from "./AnnouncementsList";
 import NewAnnouncementAlerts from "./NewAnnouncementAlerts";
-import PushSubscribeButton from "./PushSubscribeButton";
 import useNewAnnouncementAlerts from "../hooks/useNewAnnouncementAlerts";
 
 export default function VagaOperator({ user }) {
@@ -9,9 +8,6 @@ export default function VagaOperator({ user }) {
   return (
     <div className="space-y-6">
       <NewAnnouncementAlerts alerts={alerts} onDismiss={dismiss} />
-      <div>
-        <PushSubscribeButton userId={user?.id} />
-      </div>
       <AnnouncementsList
         role="wb_operator"
         currentUser={user}

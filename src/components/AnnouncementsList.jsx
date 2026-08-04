@@ -208,6 +208,21 @@ export default function AnnouncementsList({
       new_status: selectedStatus,
     });
 
+    if (previousStatus !== selectedStatus) {
+      supabase.functions
+        .invoke("send-status-push-notification", {
+          body: {
+            userId: statusTarget.created_by,
+            vrstaCementa: statusTarget.vrsta_cementa,
+            oldStatus: previousStatus,
+            newStatus: selectedStatus,
+          },
+        })
+        .catch((err) =>
+          console.error("Slanje push notifikacije nije uspjelo:", err),
+        );
+    }
+
     setStatusLoading(false);
     setStatusTarget(null);
     setSelectedStatus("");
