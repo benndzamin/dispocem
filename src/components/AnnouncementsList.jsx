@@ -1,12 +1,50 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 
+const STATUS_ORDER = { pending: 0, in_progress: 1, completed: 2 };
+
+const COLUMNS = [
+  { key: "firma", label: "Firma", accessor: (item) => item.firma || "" },
+  {
+    key: "created_at",
+    label: "Kreirano",
+    accessor: (item) => item.created_at || "",
+  },
+  {
+    key: "vrsta_cementa",
+    label: "Vrsta cementa",
+    accessor: (item) => item.vrsta_cementa || "",
+  },
+  {
+    key: "datum_planiranja_odpreme",
+    label: "Planirani datum",
+    accessor: (item) => item.datum_planiranja_odpreme || "",
+  },
+  {
+    key: "vozac",
+    label: "Vozač",
+    accessor: (item) =>
+      `${item.prezime_vozaca || ""} ${item.ime_vozaca || ""}`.trim(),
+  },
+  {
+    key: "registarske_oznake",
+    label: "Registracija",
+    accessor: (item) => item.registarske_oznake || "",
+  },
+  {
+    key: "status",
+    label: "Status",
+    accessor: (item) => STATUS_ORDER[item.status] ?? 0,
+  },
+];
+
 export default function AnnouncementsList({
   role,
   currentUser,
   refreshKey,
   hideTopBorder = false,
   onCreateNew,
+  newAlerts,
 }) {
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -22,6 +60,8 @@ export default function AnnouncementsList({
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [sortField, setSortField] = useState("created_at");
+  const [sortDirection, setSortDirection] = useState("desc");
 
   const showNotification = (message, type = "success") => {
     setNotification({ message, type });
@@ -54,6 +94,28 @@ export default function AnnouncementsList({
   useEffect(() => {
     fetchAnnouncements();
   }, [role, currentUser?.id, refreshKey]);
+
+  useEffect(() => {
+    if (!newAlerts?.length) return;
+    setAnnouncements((prev) => {
+      const existingIds = new Set(prev.map((a) => a.id));
+      const toAdd = newAlerts
+        .map((a) => a.row)
+        .filter((row) => row && !existingIds.has(row.id));
+      return toAdd.length ? [...toAdd, ...prev] : prev;
+    });
+  }, [newAlerts]);
+
+  const highlightedIds = new Set((newAlerts || []).map((a) => a.id));
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
 
   const openDeleteModal = (announcement) => {
     setDeleteTarget(announcement);
@@ -201,11 +263,20 @@ export default function AnnouncementsList({
     );
   });
 
+  const sortedAnnouncements = [...filteredAnnouncements].sort((a, b) => {
+    const column = COLUMNS.find((c) => c.key === sortField);
+    const va = column?.accessor(a) ?? "";
+    const vb = column?.accessor(b) ?? "";
+    if (va < vb) return sortDirection === "asc" ? -1 : 1;
+    if (va > vb) return sortDirection === "asc" ? 1 : -1;
+    return 0;
+  });
+
   const totalPages = Math.max(
     1,
     Math.ceil(filteredAnnouncements.length / pageSize),
   );
-  const paginatedAnnouncements = filteredAnnouncements.slice(
+  const paginatedAnnouncements = sortedAnnouncements.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize,
   );
@@ -278,27 +349,22 @@ export default function AnnouncementsList({
             <table className="min-w-full text-left text-sm">
               <thead className="bg-gray-100 text-xs uppercase tracking-wide text-gray-600">
                 <tr>
-                  <th className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold">
-                    Firma
-                  </th>
-                  <th className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold">
-                    Kreirano
-                  </th>
-                  <th className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold">
-                    Vrsta cementa
-                  </th>
-                  <th className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold">
-                    Planirani datum
-                  </th>
-                  <th className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold">
-                    Vozač
-                  </th>
-                  <th className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold">
-                    Registracija
-                  </th>
-                  <th className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold">
-                    Status
-                  </th>
+                  {COLUMNS.map((col) => (
+                    <th
+                      key={col.key}
+                      onClick={() => handleSort(col.key)}
+                      className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold cursor-pointer select-none hover:bg-gray-200"
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        {col.label}
+                        {sortField === col.key && (
+                          <span className="text-[10px]">
+                            {sortDirection === "asc" ? "▲" : "▼"}
+                          </span>
+                        )}
+                      </span>
+                    </th>
+                  ))}
                   <th className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold">
                     Akcije
                   </th>
@@ -308,7 +374,13 @@ export default function AnnouncementsList({
                 {paginatedAnnouncements.map((item) => (
                   <tr
                     key={item.id}
-                    className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50"
+                    className={`border-b last:border-b-0 transition-colors duration-700 ${
+                      highlightedIds.has(item.id)
+                        ? "border-blue-200 bg-blue-50 hover:bg-blue-100"
+                        : item.status === "completed"
+                          ? "border-gray-200 bg-gray-50 opacity-60"
+                          : "border-gray-200 hover:bg-gray-50"
+                    }`}
                   >
                     <td
                       className="max-w-[16rem] truncate px-3 py-3 font-semibold text-gray-900"

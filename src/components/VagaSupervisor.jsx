@@ -4,6 +4,8 @@ import BuyerManagement from "./BuyerManagement";
 import AnnouncementsList from "./AnnouncementsList";
 import AnnouncementForm from "./AnnouncementForm";
 import CementCatalogManager from "./CementCatalogManager";
+import NewAnnouncementAlerts from "./NewAnnouncementAlerts";
+import useNewAnnouncementAlerts from "../hooks/useNewAnnouncementAlerts";
 
 const tabs = [
   { key: "home", label: "Početna" },
@@ -28,6 +30,8 @@ export default function VagaSupervisor({ user }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [announcementModalOpen, setAnnouncementModalOpen] = useState(false);
+  const { alerts: newAnnouncementAlerts, dismiss: dismissNewAnnouncementAlert } =
+    useNewAnnouncementAlerts(user?.id);
 
   useEffect(() => {
     const fetchSupervisorStats = async () => {
@@ -139,6 +143,11 @@ export default function VagaSupervisor({ user }) {
 
   return (
     <div className="space-y-6">
+      <NewAnnouncementAlerts
+        alerts={newAnnouncementAlerts}
+        onDismiss={dismissNewAnnouncementAlert}
+      />
+
       {notification && (
         <div
           className={`fixed right-4 top-4 z-[60] rounded-lg px-4 py-3 text-sm font-medium shadow-lg ${
@@ -282,6 +291,7 @@ export default function VagaSupervisor({ user }) {
             refreshKey={refreshKey}
             hideTopBorder
             onCreateNew={() => openAnnouncementModal()}
+            newAlerts={newAnnouncementAlerts}
           />
         )}
 
