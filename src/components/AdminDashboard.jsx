@@ -90,13 +90,13 @@ export default function AdminDashboard({ user }) {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex items-end gap-2 overflow-x-auto flex-nowrap">
             {tabs.map((tab) => (
               <button
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`-mb-px rounded-t-lg border px-4 py-2.5 text-sm transition-colors ${
+                className={`-mb-px shrink-0 rounded-t-lg border px-4 py-2.5 text-sm transition-colors ${
                   activeTab === tab.key
                     ? "relative z-10 border-gray-200 border-b-white bg-white font-semibold text-brand-red"
                     : "border-transparent border-b-gray-200 bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600"

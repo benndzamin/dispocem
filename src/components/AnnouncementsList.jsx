@@ -121,6 +121,17 @@ export default function AnnouncementsList({
     setDeleteTarget(announcement);
   };
 
+  const canDelete = (item) => {
+    if (role === "buyer") {
+      const ONE_HOUR_MS = 60 * 60 * 1000;
+      return (
+        item.status === "pending" &&
+        Date.now() - new Date(item.created_at).getTime() < ONE_HOUR_MS
+      );
+    }
+    return true;
+  };
+
   const closeDeleteModal = () => {
     if (deleteLoading) return;
     setDeleteTarget(null);
@@ -130,15 +141,26 @@ export default function AnnouncementsList({
     if (!deleteTarget) return;
 
     setDeleteLoading(true);
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("announcements")
       .delete()
-      .eq("id", deleteTarget.id);
+      .eq("id", deleteTarget.id)
+      .select();
     setDeleteLoading(false);
 
     if (error) {
       showNotification(
         "Greška pri brisanju najave: " + error.message,
+        "error",
+      );
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      setDeleteTarget(null);
+      await fetchAnnouncements();
+      showNotification(
+        "Najava se više ne može obrisati (status ili vrijeme su se u međuvremenu promijenili).",
         "error",
       );
       return;
@@ -323,6 +345,29 @@ export default function AnnouncementsList({
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
             />
           </div>
+          <div className="flex items-center gap-2 md:hidden">
+            <select
+              value={sortField}
+              onChange={(e) => setSortField(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+            >
+              {COLUMNS.map((col) => (
+                <option key={col.key} value={col.key}>
+                  Sortiraj: {col.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() =>
+                setSortDirection((d) => (d === "asc" ? "desc" : "asc"))
+              }
+              aria-label="Obrni smjer sortiranja"
+              className="shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              {sortDirection === "asc" ? "▲" : "▼"}
+            </button>
+          </div>
           {onCreateNew && (
             <button
               type="button"
@@ -345,7 +390,7 @@ export default function AnnouncementsList({
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto border-t border-gray-200">
+          <div className="hidden overflow-x-auto border-t border-gray-200 md:block">
             <table className="min-w-full text-left text-sm">
               <thead className="bg-gray-100 text-xs uppercase tracking-wide text-gray-600">
                 <tr>
@@ -432,7 +477,7 @@ export default function AnnouncementsList({
                             Promijeni status
                           </button>
                         )}
-                        {role === "buyer" && (
+                        {canDelete(item) && (
                           <button
                             type="button"
                             onClick={() => openDeleteModal(item)}
@@ -454,6 +499,90 @@ export default function AnnouncementsList({
                 ))}
               </tbody>
             </table>
+          </div>
+
+          <div className="space-y-3 md:hidden">
+            {paginatedAnnouncements.map((item) => (
+              <div
+                key={item.id}
+                className={`rounded-xl border p-4 transition-colors duration-700 ${
+                  highlightedIds.has(item.id)
+                    ? "border-blue-200 bg-blue-50"
+                    : item.status === "completed"
+                      ? "border-gray-200 bg-gray-50 opacity-60"
+                      : "border-gray-200 bg-white"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="font-semibold text-gray-900">
+                    {item.firma}
+                  </div>
+                  <div className="whitespace-nowrap text-xs font-semibold uppercase text-brand-red">
+                    {item.status}
+                  </div>
+                </div>
+
+                <div className="mt-2 text-sm text-gray-700">
+                  {item.vrsta_cementa}
+                </div>
+
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+                  <div>
+                    <span className="text-gray-400">Kreirano: </span>
+                    {new Date(item.created_at).toLocaleDateString("hr-HR")}{" "}
+                    {new Date(item.created_at).toLocaleTimeString("hr-HR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Planirano: </span>
+                    {item.datum_planiranja_odpreme
+                      ? item.datum_planiranja_odpreme
+                          .split("-")
+                          .reverse()
+                          .join(".")
+                      : "-"}
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Vozač: </span>
+                    {item.ime_vozaca || "-"} {item.prezime_vozaca || ""}
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Reg: </span>
+                    {item.registarske_oznake || "-"}
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {role !== "buyer" && (
+                    <button
+                      type="button"
+                      onClick={() => openStatusModal(item)}
+                      className="rounded-lg bg-brand-red hover:bg-brand-red-dark text-white px-3 py-2 text-xs font-medium transition-colors"
+                    >
+                      Promijeni status
+                    </button>
+                  )}
+                  {canDelete(item) && (
+                    <button
+                      type="button"
+                      onClick={() => openDeleteModal(item)}
+                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 hover:bg-red-100"
+                    >
+                      Obriši
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => openHistoryModal(item)}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs text-gray-600 hover:bg-gray-100 transition-colors"
+                  >
+                    Historija
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -546,7 +675,7 @@ export default function AnnouncementsList({
             role="dialog"
             aria-modal="true"
             aria-labelledby="change-status-title"
-            className="w-full max-w-2xl rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl shadow-black/10"
+            className="w-full max-w-2xl rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-2xl shadow-black/10"
           >
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
@@ -670,7 +799,7 @@ export default function AnnouncementsList({
             role="dialog"
             aria-modal="true"
             aria-labelledby="delete-announcement-title"
-            className="w-full max-w-lg rounded-3xl border border-red-300 bg-white p-6 shadow-2xl shadow-black/10"
+            className="w-full max-w-lg rounded-3xl border border-red-300 bg-white p-4 sm:p-6 shadow-2xl shadow-black/10"
           >
             <h3
               id="delete-announcement-title"
@@ -721,7 +850,7 @@ export default function AnnouncementsList({
             role="dialog"
             aria-modal="true"
             aria-labelledby="history-title"
-            className="w-full max-w-2xl rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl shadow-black/10"
+            className="w-full max-w-2xl rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-2xl shadow-black/10"
           >
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>

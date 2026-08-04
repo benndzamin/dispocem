@@ -171,13 +171,13 @@ export default function VagaSupervisor({ user }) {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-end gap-2">
+          <div className="flex items-end gap-2 overflow-x-auto flex-nowrap">
             {tabs.map((tab) => (
               <button
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`-mb-px rounded-t-lg border px-4 py-2.5 text-sm transition-colors ${
+                className={`-mb-px shrink-0 rounded-t-lg border px-4 py-2.5 text-sm transition-colors ${
                   activeTab === tab.key
                     ? "relative z-10 border-gray-200 border-b-white bg-white font-semibold text-brand-red"
                     : "border-transparent border-b-gray-200 bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
@@ -323,7 +323,7 @@ export default function VagaSupervisor({ user }) {
 
       {announcementModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4">
-          <div className="w-full max-w-3xl rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl shadow-black/10">
+          <div className="w-full max-w-3xl rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-2xl shadow-black/10">
             <div className="mb-4 flex items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -364,7 +364,7 @@ export default function VagaSupervisor({ user }) {
 
       {isDeleteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4">
-          <div className="w-full max-w-5xl rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl shadow-black/10">
+          <div className="w-full max-w-5xl rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-2xl shadow-black/10">
             <div className="mb-4 flex items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -458,7 +458,7 @@ export default function VagaSupervisor({ user }) {
             role="dialog"
             aria-modal="true"
             aria-labelledby="delete-buyer-title"
-            className="w-full max-w-lg rounded-3xl border border-red-300 bg-white p-6 shadow-2xl shadow-black/10"
+            className="w-full max-w-lg rounded-3xl border border-red-300 bg-white p-4 sm:p-6 shadow-2xl shadow-black/10"
           >
             <h3
               id="delete-buyer-title"

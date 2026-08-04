@@ -252,7 +252,7 @@ export default function BuyerManagement({
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4">
-          <div className="w-full max-w-3xl rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl shadow-black/10">
+          <div className="w-full max-w-3xl rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-2xl shadow-black/10">
             <div className="mb-4 flex items-center justify-between gap-4">
               <div>
                 <h4 className="text-lg font-semibold text-gray-900">
@@ -404,7 +404,7 @@ export default function BuyerManagement({
         <p className="text-gray-500">Nema kupaca koji odgovaraju pretrazi.</p>
       ) : (
         <>
-          <div className="overflow-x-auto border-t border-gray-200">
+          <div className="hidden overflow-x-auto border-t border-gray-200 md:block">
             <table className="min-w-full text-left text-sm">
               <thead className="bg-gray-100 text-xs uppercase tracking-wide text-gray-600">
                 <tr>
@@ -477,6 +477,51 @@ export default function BuyerManagement({
                 ))}
               </tbody>
             </table>
+          </div>
+
+          <div className="space-y-3 md:hidden">
+            {paginatedBuyers.map((buyer) => (
+              <div
+                key={buyer.id}
+                className="rounded-xl border border-gray-200 bg-white p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="font-semibold text-gray-900">
+                    {buyer.naziv_firme}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleEditClick(buyer)}
+                    className="shrink-0 whitespace-nowrap rounded-lg bg-brand-red hover:bg-brand-red-dark text-white px-3 py-2 text-xs font-medium transition-colors"
+                  >
+                    Uredi
+                  </button>
+                </div>
+                <div className="mt-2 text-sm text-gray-600">
+                  {buyer.email}
+                </div>
+                <div className="mt-3 text-sm">
+                  <div className="text-xs uppercase text-gray-400">
+                    Dozvoljeni artikli
+                  </div>
+                  <div className="text-gray-700">
+                    {buyer.dozvoljeni_artikli &&
+                    buyer.dozvoljeni_artikli.length > 0
+                      ? buyer.dozvoljeni_artikli.join(", ")
+                      : "Nijedan"}
+                  </div>
+                </div>
+                <label className="mt-3 flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={buyer.announcement_required}
+                    disabled
+                    className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red disabled:cursor-not-allowed disabled:opacity-70"
+                  />
+                  Zahtijeva najavu
+                </label>
+              </div>
+            ))}
           </div>
 
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

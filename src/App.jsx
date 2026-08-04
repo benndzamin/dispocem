@@ -80,14 +80,14 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[url('/background-image.jpg')] bg-cover bg-center bg-fixed text-gray-800 font-sans">
       {/* Glavni Top Bar sistema */}
-      <header className="border-b border-gray-200 bg-white/80 backdrop-blur h-20 flex items-center">
+      <header className="border-b border-gray-200 bg-white/80 backdrop-blur h-16 sm:h-20 flex items-center pl-3 sm:pl-0">
         <div className="flex h-full items-center gap-3">
           <img src="/logo.png" alt="Lukavac Cement" className="h-full w-auto" />
           <div>
-            <h1 className="text-lg font-bold tracking-tight text-gray-900">
+            <h1 className="text-base sm:text-lg font-bold tracking-tight text-gray-900">
               DISPOCEM LOGISTICS
             </h1>
-            <div className="mt-1.5 flex items-center gap-3">
+            <div className="mt-1.5 flex flex-wrap items-center gap-2 sm:gap-3">
               <UserBadge user={session.user} userProfile={userProfile} />
 
               {/* Profi Logout Button */}

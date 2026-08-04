@@ -46,9 +46,9 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[url('/background-image.jpg')] bg-cover bg-center font-sans px-4">
-      <div className="max-w-md w-full bg-white border border-gray-200 rounded-xl p-8 shadow-2xl">
-        <div className="mb-8 flex items-center justify-center gap-4">
-          <img src="/logo.png" alt="Lukavac Cement" className="h-24 w-auto" />
+      <div className="max-w-md w-full bg-white border border-gray-200 rounded-xl p-6 sm:p-8 shadow-2xl">
+        <div className="mb-6 sm:mb-8 flex items-center justify-center gap-4">
+          <img src="/logo.png" alt="Lukavac Cement" className="h-16 sm:h-24 w-auto" />
           <div>
             <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
               DISPOCEM LOGISTICS

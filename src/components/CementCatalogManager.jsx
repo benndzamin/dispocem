@@ -181,7 +181,7 @@ export default function CementCatalogManager() {
 
       {/* Tabela aktivnih vrsta cementa */}
       <div className="rounded-b-2xl border-x border-b border-gray-200 bg-white p-6">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">
               📋 Aktivne vrste cementa
@@ -191,7 +191,7 @@ export default function CementCatalogManager() {
               stanja, ili na 🗑️ za brisanje.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={openAddModal}
@@ -217,7 +217,7 @@ export default function CementCatalogManager() {
             cementa" iznad.
           </div>
         ) : (
-          <div className="overflow-x-auto border-t border-gray-200">
+          <div className="hidden overflow-x-auto border-t border-gray-200 md:block">
             <table className="min-w-full text-left text-sm">
               <thead className="bg-gray-100 text-xs uppercase tracking-wide text-gray-600">
                 <tr>
@@ -274,12 +274,54 @@ export default function CementCatalogManager() {
             </table>
           </div>
         )}
+
+        {activeItems.length > 0 && (
+          <div className="space-y-3 md:hidden">
+            {activeItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4"
+              >
+                <div>
+                  <div className="font-semibold text-gray-900">
+                    {item.name}
+                  </div>
+                  <span
+                    className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                      item.na_stanju !== false
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : "bg-red-50 text-red-700 border border-red-200"
+                    }`}
+                  >
+                    Na stanju: {item.na_stanju !== false ? "Da" : "Ne"}
+                  </span>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <button
+                    onClick={() => openEditModal(item)}
+                    className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                    title="Izmijeni vrstu cementa"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    onClick={() => openDeleteConfirm(item)}
+                    className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                    title="Obriši vrstu cementa"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Modal za izmjenu vrste cementa */}
       {editTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4">
-          <div className="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl shadow-black/10">
+          <div className="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-2xl shadow-black/10">
             <div className="mb-4">
               <h4 className="text-lg font-semibold text-gray-900">
                 ✏️ Izmijeni vrstu cementa
@@ -350,7 +392,7 @@ export default function CementCatalogManager() {
       {/* Modal za potvrdu brisanja */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4">
-          <div className="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl shadow-black/10">
+          <div className="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-2xl shadow-black/10">
             <div className="mb-4">
               <h4 className="text-lg font-semibold text-gray-900">
                 🗑️ Potvrda brisanja
@@ -406,7 +448,7 @@ export default function CementCatalogManager() {
       {/* Modal za dodavanje nove vrste cementa */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4">
-          <div className="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl shadow-black/10">
+          <div className="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-2xl shadow-black/10">
             <div className="mb-4">
               <h4 className="text-lg font-semibold text-gray-900">
                 ➕ Dodaj novu vrstu cementa
@@ -449,7 +491,7 @@ export default function CementCatalogManager() {
       {/* Modal za vraćanje obrisanih vrsta cementa */}
       {showRestoreModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4">
-          <div className="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl shadow-black/10">
+          <div className="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-2xl shadow-black/10">
             <div className="mb-4">
               <h4 className="text-lg font-semibold text-gray-900">
                 🔄 Vrati obrisane vrste cementa

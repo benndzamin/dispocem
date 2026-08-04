@@ -133,9 +133,9 @@ export default function AnnouncementForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-4 rounded-xl border border-gray-200 bg-white p-6"
+      className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 sm:p-6"
     >
-      <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+      <div className="flex flex-col gap-2 border-b border-gray-200 pb-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">
           Nova najava otpreme
         </h3>
@@ -243,7 +243,7 @@ export default function AnnouncementForm({
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">
             Ime vozača
@@ -264,7 +264,7 @@ export default function AnnouncementForm({
             className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
           />
         </div>
-        <div>
+        <div className="col-span-2 md:col-span-1">
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">
             Registarske oznake
           </label>
