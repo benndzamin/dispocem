@@ -2,7 +2,7 @@ import React from "react";
 
 const ROLE_DETAILS = {
   admin: {
-    title: "Administracija — kontrolna tabla",
+    title: "Administracija",
     desc: "Admin vidi sve najave, upravlja vrstama cementa i kontrolira kupce.",
   },
   wb_supervisor: {
