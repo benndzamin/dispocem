@@ -3,12 +3,14 @@ import { supabase } from "../supabaseClient";
 import CementCatalogManager from "./CementCatalogManager";
 import BuyerManagement from "./BuyerManagement";
 import AnnouncementsList from "./AnnouncementsList";
+import StaffManagement from "./StaffManagement";
 
 const tabs = [
-  { key: "home", label: "Početna" },
-  { key: "cement", label: "Vrste cementa" },
-  { key: "buyers", label: "Kupci" },
-  { key: "announcements", label: "Najave" },
+  { key: "home", label: "Početna", mobileLabel: "Početna" },
+  { key: "cement", label: "Vrste cementa", mobileLabel: "Cement" },
+  { key: "buyers", label: "Kupci", mobileLabel: "Kupci" },
+  { key: "announcements", label: "Najave", mobileLabel: "Najave" },
+  { key: "staff", label: "Osoblje", mobileLabel: "Osoblje" },
 ];
 
 export default function AdminDashboard({ user }) {
@@ -22,6 +24,7 @@ export default function AdminDashboard({ user }) {
   const [recentAnnouncements, setRecentAnnouncements] = useState([]);
   const [loadingStats, setLoadingStats] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [notification, setNotification] = useState(null);
 
   useEffect(() => {
     const fetchAdminStats = async () => {
@@ -77,8 +80,25 @@ export default function AdminDashboard({ user }) {
 
   const handleRefresh = () => setRefreshKey((value) => value + 1);
 
+  const showNotification = (message, type = "success") => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
   return (
     <div className="space-y-6">
+      {notification && (
+        <div
+          className={`fixed right-4 top-4 z-[60] rounded-lg px-4 py-3 text-sm font-medium shadow-lg ${
+            notification.type === "success"
+              ? "bg-green-500 text-white"
+              : "bg-red-500 text-white"
+          }`}
+        >
+          {notification.message}
+        </div>
+      )}
+
       <div className="rounded-2xl border border-gray-200 bg-white p-6">
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="pointer-events-none absolute inset-x-0 bottom-0 border-b border-gray-200" />
@@ -87,25 +107,27 @@ export default function AdminDashboard({ user }) {
               Admin dashboard
             </h2>
             <p className="text-sm text-gray-500">
-              Upravljajte statistikama, najavama, kupcima i vrstama cementa.
+              Upravljajte statistikama, najavama, kupcima, vrstama cementa i
+              osobljem.
             </p>
           </div>
 
-          <div className="scrollbar-hide overflow-x-auto">
-            <div className="relative flex w-max items-end gap-2 flex-nowrap">
+          <div className="w-full sm:w-auto">
+            <div className="relative flex items-end gap-1 sm:w-max sm:gap-2">
               <div className="pointer-events-none absolute inset-x-0 bottom-0 border-b border-gray-200" />
               {tabs.map((tab) => (
                 <button
                   key={tab.key}
                   type="button"
                   onClick={() => setActiveTab(tab.key)}
-                  className={`relative shrink-0 rounded-t-lg border px-4 py-2.5 text-sm transition-colors ${
+                  className={`relative min-w-0 flex-1 truncate rounded-t-lg border px-1.5 py-2 text-center text-[11px] transition-colors sm:flex-none sm:px-4 sm:py-2.5 sm:text-sm ${
                     activeTab === tab.key
                       ? "border-gray-200 border-b-white bg-white font-semibold text-brand-red"
                       : "border-transparent border-b-gray-200 bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
                   }`}
                 >
-                  {tab.label}
+                  <span className="sm:hidden">{tab.mobileLabel}</span>
+                  <span className="hidden sm:inline">{tab.label}</span>
                 </button>
               ))}
             </div>
@@ -114,47 +136,53 @@ export default function AdminDashboard({ user }) {
 
         {activeTab === "home" && (
           <div className="mt-6 space-y-8">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
-                <div className="text-sm uppercase text-gray-500">Kupci</div>
-                <div className="mt-4 text-3xl font-bold text-gray-900">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4 md:gap-4">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500 sm:text-xs">
+                  Kupci
+                </div>
+                <div className="mt-2 text-xl font-bold text-gray-900 sm:mt-3 sm:text-2xl md:text-3xl">
                   {stats.buyers}
                 </div>
-                <div className="mt-2 text-sm text-gray-500">
+                <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
                   Aktivni kupci u sistemu
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
-                <div className="text-sm uppercase text-gray-500">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500 sm:text-xs">
                   Vrste cementa
                 </div>
-                <div className="mt-4 text-3xl font-bold text-gray-900">
+                <div className="mt-2 text-xl font-bold text-gray-900 sm:mt-3 sm:text-2xl md:text-3xl">
                   {stats.cementTypes}
                 </div>
-                <div className="mt-2 text-sm text-gray-500">
+                <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
                   Aktivne vrste cementa
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
-                <div className="text-sm uppercase text-gray-500">Najave</div>
-                <div className="mt-4 text-3xl font-bold text-gray-900">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500 sm:text-xs">
+                  Najave
+                </div>
+                <div className="mt-2 text-xl font-bold text-gray-900 sm:mt-3 sm:text-2xl md:text-3xl">
                   {stats.pendingAnnouncements}
                 </div>
-                <div className="mt-2 text-sm text-gray-500">
+                <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
                   Status: pending
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
-                <div className="text-sm uppercase text-gray-500">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500 sm:text-xs">
                   In progress
                 </div>
-                <div className="mt-4 text-3xl font-bold text-gray-900">
+                <div className="mt-2 text-xl font-bold text-gray-900 sm:mt-3 sm:text-2xl md:text-3xl">
                   {stats.inProgressAnnouncements}
                 </div>
-                <div className="mt-2 text-sm text-gray-500">Najave u toku</div>
+                <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
+                  Najave u toku
+                </div>
               </div>
             </div>
 
@@ -178,14 +206,16 @@ export default function AdminDashboard({ user }) {
                   </button>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   <button
                     type="button"
                     onClick={() => setActiveTab("announcements")}
-                    className="rounded-2xl border border-gray-200 bg-white px-4 py-5 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50"
+                    className="rounded-2xl border border-gray-200 bg-white px-3 py-3 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50 sm:px-4 sm:py-5"
                   >
-                    <div className="font-semibold">📢 Upravljaj najavama</div>
-                    <div className="mt-2 text-sm text-gray-500">
+                    <div className="text-sm font-semibold sm:text-base">
+                      📢 Upravljaj najavama
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
                       Pregledaj i ažuriraj postojeće najave.
                     </div>
                   </button>
@@ -193,10 +223,12 @@ export default function AdminDashboard({ user }) {
                   <button
                     type="button"
                     onClick={() => setActiveTab("buyers")}
-                    className="rounded-2xl border border-gray-200 bg-white px-4 py-5 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50"
+                    className="rounded-2xl border border-gray-200 bg-white px-3 py-3 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50 sm:px-4 sm:py-5"
                   >
-                    <div className="font-semibold">👥 Upravljaj kupcima</div>
-                    <div className="mt-2 text-sm text-gray-500">
+                    <div className="text-sm font-semibold sm:text-base">
+                      👥 Upravljaj kupcima
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
                       Dodaj ili izmijeni kupce.
                     </div>
                   </button>
@@ -204,10 +236,12 @@ export default function AdminDashboard({ user }) {
                   <button
                     type="button"
                     onClick={() => setActiveTab("cement")}
-                    className="rounded-2xl border border-gray-200 bg-white px-4 py-5 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50"
+                    className="rounded-2xl border border-gray-200 bg-white px-3 py-3 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50 sm:px-4 sm:py-5"
                   >
-                    <div className="font-semibold">🧱 Dodaj cement</div>
-                    <div className="mt-2 text-sm text-gray-500">
+                    <div className="text-sm font-semibold sm:text-base">
+                      🧱 Dodaj cement
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
                       Dodaj novu vrstu cementa.
                     </div>
                   </button>
@@ -215,11 +249,26 @@ export default function AdminDashboard({ user }) {
                   <button
                     type="button"
                     onClick={() => setActiveTab("home")}
-                    className="rounded-2xl border border-gray-200 bg-white px-4 py-5 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50"
+                    className="rounded-2xl border border-gray-200 bg-white px-3 py-3 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50 sm:px-4 sm:py-5"
                   >
-                    <div className="font-semibold">📈 Pregled statistike</div>
-                    <div className="mt-2 text-sm text-gray-500">
+                    <div className="text-sm font-semibold sm:text-base">
+                      📈 Pregled statistike
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
                       Pogledajte ključne metrike u jednom mjestu.
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("staff")}
+                    className="rounded-2xl border border-gray-200 bg-white px-3 py-3 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50 sm:px-4 sm:py-5"
+                  >
+                    <div className="text-sm font-semibold sm:text-base">
+                      🛡️ Upravljaj osobljem
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
+                      Dodaj ili ukloni supervizore i operatere.
                     </div>
                   </button>
                 </div>
@@ -291,10 +340,11 @@ export default function AdminDashboard({ user }) {
         )}
 
         {activeTab === "buyers" && (
-          <BuyerManagement
-            showNotification={(msg, type) => console.log(msg, type)}
-            hideTopBorder
-          />
+          <BuyerManagement showNotification={showNotification} hideTopBorder />
+        )}
+
+        {activeTab === "staff" && (
+          <StaffManagement showNotification={showNotification} hideTopBorder />
         )}
 
         {activeTab === "cement" && <CementCatalogManager />}

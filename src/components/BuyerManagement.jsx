@@ -4,6 +4,7 @@ import { supabase } from "../supabaseClient";
 export default function BuyerManagement({
   showNotification = () => {},
   hideTopBorder = false,
+  addModalSignal = 0,
 }) {
   const [buyers, setBuyers] = useState([]);
   const [cementTypes, setCementTypes] = useState([]);
@@ -17,7 +18,7 @@ export default function BuyerManagement({
   const [announcementRequired, setAnnouncementRequired] = useState(true);
   const [approvalRequired, setApprovalRequired] = useState(false);
   const [message, setMessage] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(() => Boolean(addModalSignal));
   const [modalMode, setModalMode] = useState("create");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);

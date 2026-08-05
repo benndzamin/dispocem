@@ -33,6 +33,7 @@ export default function VagaSupervisor({ user }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [announcementModalOpen, setAnnouncementModalOpen] = useState(false);
+  const [addBuyerSignal, setAddBuyerSignal] = useState(0);
   const {
     alerts: newAnnouncementAlerts,
     dismiss: dismissNewAnnouncementAlert,
@@ -178,15 +179,15 @@ export default function VagaSupervisor({ user }) {
             </p>
           </div>
 
-          <div className="scrollbar-hide pt-2">
-            <div className="relative flex w-max items-end gap-1 flex-nowrap sm:gap-2">
+          <div className="w-full pt-2 sm:w-auto">
+            <div className="relative flex items-end gap-1 sm:w-max sm:gap-2">
               <div className="pointer-events-none absolute inset-x-0 bottom-0 border-b border-gray-200" />
               {tabs.map((tab) => (
                 <button
                   key={tab.key}
                   type="button"
                   onClick={() => setActiveTab(tab.key)}
-                  className={`relative shrink-0 rounded-t-lg border px-3 py-2 text-sm transition-colors sm:px-4 sm:py-2.5 ${
+                  className={`relative min-w-0 flex-1 rounded-t-lg border px-1.5 py-2 text-center text-[11px] transition-colors sm:flex-none sm:px-4 sm:py-2.5 sm:text-sm ${
                     activeTab === tab.key
                       ? "border-gray-200 border-b-white bg-white font-semibold text-brand-red"
                       : "border-transparent border-b-gray-200 bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
@@ -209,34 +210,52 @@ export default function VagaSupervisor({ user }) {
 
         {activeTab === "home" && (
           <div className="mt-6 space-y-8">
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
-                <div className="text-sm uppercase text-gray-500">Kupci</div>
-                <div className="mt-4 text-3xl font-bold text-gray-900">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4 md:gap-4">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500 sm:text-xs">
+                  Kupci
+                </div>
+                <div className="mt-2 text-xl font-bold text-gray-900 sm:mt-3 sm:text-2xl md:text-3xl">
                   {stats.buyers}
                 </div>
-                <div className="mt-2 text-sm text-gray-500">
+                <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
                   Aktivni kupci u sistemu
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
-                <div className="text-sm uppercase text-gray-500">
-                  U toku utovara
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500 sm:text-xs">
+                  In progress
                 </div>
-                <div className="mt-4 text-3xl font-bold text-gray-900">
+                <div className="mt-2 text-xl font-bold text-gray-900 sm:mt-3 sm:text-2xl md:text-3xl">
                   {stats.inProgressAnnouncements}
                 </div>
-                <div className="mt-2 text-sm text-gray-500">U toku utovara</div>
+                <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
+                  Najave u toku utovara
+                </div>
               </div>
 
-              <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
-                <div className="text-sm uppercase text-gray-500">Pending</div>
-                <div className="mt-4 text-3xl font-bold text-gray-900">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500 sm:text-xs">
+                  Pending
+                </div>
+                <div className="mt-2 text-xl font-bold text-gray-900 sm:mt-3 sm:text-2xl md:text-3xl">
                   {stats.pendingAnnouncements}
                 </div>
-                <div className="mt-2 text-sm text-gray-500">
+                <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
                   Najave na čekanju
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500 sm:text-xs">
+                  Approval pending
+                </div>
+                <div className="mt-2 text-xl font-bold text-gray-900 sm:mt-3 sm:text-2xl md:text-3xl">
+                  {pendingApprovalsCount}
+                </div>
+                <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
+                  Najave koje čekaju odobrenje
                 </div>
               </div>
             </div>
@@ -261,38 +280,67 @@ export default function VagaSupervisor({ user }) {
                   </button>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   <button
                     type="button"
                     onClick={() => openAnnouncementModal()}
-                    className="rounded-2xl border border-gray-200 bg-white px-4 py-5 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50"
+                    className="rounded-2xl border border-gray-200 bg-white px-3 py-3 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50 sm:px-4 sm:py-5"
                   >
-                    <div className="font-semibold">➕ Kreiraj novu najavu</div>
-                    <div className="mt-2 text-sm text-gray-500">
+                    <div className="text-sm font-semibold sm:text-base">
+                      ➕ Kreiraj novu najavu
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
                       Kreirajte novu najavu za kupca.
                     </div>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => setActiveTab("buyers")}
-                    className="rounded-2xl border border-gray-200 bg-white px-4 py-5 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50"
+                    onClick={() => {
+                      setActiveTab("buyers");
+                      setAddBuyerSignal((value) => value + 1);
+                    }}
+                    className="rounded-2xl border border-gray-200 bg-white px-3 py-3 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50 sm:px-4 sm:py-5"
                   >
-                    <div className="font-semibold">👥 Upravljaj kupcima</div>
-                    <div className="mt-2 text-sm text-gray-500">
-                      Pregledajte i uredite kupce i dozvole.
+                    <div className="text-sm font-semibold sm:text-base">
+                      ➕ Dodaj novog kupca
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
+                      Otvara formu za novog kupca.
                     </div>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => setActiveTab("announcements")}
-                    className="rounded-2xl border border-gray-200 bg-white px-4 py-5 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50"
+                    onClick={openDeleteModal}
+                    className="rounded-2xl border border-gray-200 bg-white px-3 py-3 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50 sm:px-4 sm:py-5"
                   >
-                    <div className="font-semibold">📢 Pregled najava</div>
-                    <div className="mt-2 text-sm text-gray-500">
-                      Pregledajte i ažuriraj postojeće najave.
+                    <div className="text-sm font-semibold sm:text-base">
+                      🗑️ Obriši kupca
                     </div>
+                    <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
+                      Pronađite i obrišite kupca.
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("approvals")}
+                    className="relative rounded-2xl border border-gray-200 bg-white px-3 py-3 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50 sm:px-4 sm:py-5"
+                  >
+                    <div className="text-sm font-semibold sm:text-base">
+                      🔔 Najave na čekanju za odobrenje
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
+                      Pregledajte najave koje čekaju vaše odobrenje.
+                    </div>
+                    {pendingApprovalsCount > 0 && (
+                      <span className="absolute -top-2 -right-2 z-10 flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-red px-1.5 text-xs font-semibold text-white">
+                        {pendingApprovalsCount > 99
+                          ? "99+"
+                          : pendingApprovalsCount}
+                      </span>
+                    )}
                   </button>
                 </div>
               </div>
@@ -320,6 +368,7 @@ export default function VagaSupervisor({ user }) {
             <BuyerManagement
               showNotification={showNotification}
               hideTopBorder
+              addModalSignal={addBuyerSignal}
             />
             {/* Buyer Deletion Section */}
             <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6">
