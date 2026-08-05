@@ -59,6 +59,18 @@ export default function PendingApprovalsList() {
       return;
     }
 
+    supabase.functions
+      .invoke("send-push-notification", {
+        body: {
+          action: "approved",
+          firma: confirmTarget.firma,
+          vrstaCementa: confirmTarget.vrsta_cementa,
+        },
+      })
+      .catch((err) =>
+        console.error("Slanje push notifikacije operateru nije uspjelo:", err),
+      );
+
     setItems((prev) => prev.filter((item) => item.id !== confirmTarget.id));
     showNotification(`Najava za ${confirmTarget.firma} je odobrena.`);
     setConfirmTarget(null);

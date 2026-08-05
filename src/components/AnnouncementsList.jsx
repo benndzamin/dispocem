@@ -226,6 +226,7 @@ export default function AnnouncementsList({
           vrstaCementa: deleteTarget.vrsta_cementa,
           deletedByLabel,
           deletedByRole: role,
+          actorUserId: currentUser?.id,
         },
       })
       .catch((err) =>

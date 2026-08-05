@@ -136,6 +136,7 @@ export default function AnnouncementForm({
         body: {
           firma: payload.firma,
           vrstaCementa: payload.vrsta_cementa,
+          actorUserId: currentUser?.id,
         },
       })
       .catch((err) => console.error("Slanje push notifikacije nije uspjelo:", err));

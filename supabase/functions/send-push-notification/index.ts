@@ -43,11 +43,14 @@ Deno.serve(async (req) => {
 
   // Kad operater obrise najavu, ne obavjestavamo druge operatere (peer buku) -
   // ide samo supervizoru. Kreiranje i brisanje od strane admina/supervizora i
-  // dalje ide objema ulogama, kao i do sad.
+  // dalje ide objema ulogama, kao i do sad. Odobrenje najave (iz "čeka
+  // odobrenje" u "na čekanju") tiče se samo operatera - oni je tek sad vide.
   const targetRoles =
-    payload.action === "deleted" && payload.deletedByRole === "wb_operator"
-      ? ["wb_supervisor"]
-      : ["wb_supervisor", "wb_operator"];
+    payload.action === "approved"
+      ? ["wb_operator"]
+      : payload.action === "deleted" && payload.deletedByRole === "wb_operator"
+        ? ["wb_supervisor"]
+        : ["wb_supervisor", "wb_operator"];
 
   const { data: recipients, error: recipientsError } = await supabase
     .from("users")
@@ -61,16 +64,25 @@ Deno.serve(async (req) => {
     });
   }
 
-  const subscriptions = (recipients || []).flatMap(
-    (u) => u.push_subscriptions || [],
-  );
+  // Ko god je napravio promjenu ne treba dobiti notifikaciju o svojoj
+  // vlastitoj akciji.
+  const subscriptions = (recipients || [])
+    .filter((u) => u.id !== payload.actorUserId)
+    .flatMap((u) => u.push_subscriptions || []);
 
   const isDeleted = payload.action === "deleted";
+  const isApproved = payload.action === "approved";
   const notificationPayload = JSON.stringify({
-    title: isDeleted ? "Najava obrisana" : "Nova najava otpreme",
+    title: isDeleted
+      ? "Najava obrisana"
+      : isApproved
+        ? "Najava odobrena"
+        : "Nova najava otpreme",
     body: isDeleted
       ? `${payload.deletedByLabel || payload.firma} je obrisao/la najavu za utovar (${payload.vrstaCementa}).`
-      : `${payload.firma} — ${payload.vrstaCementa}`,
+      : isApproved
+        ? `${payload.firma} — ${payload.vrstaCementa} je odobrena, spremna za utovar.`
+        : `${payload.firma} — ${payload.vrstaCementa}`,
     url: "/",
   });
 

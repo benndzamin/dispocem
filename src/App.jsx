@@ -81,8 +81,16 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[url('/background-image.jpg')] bg-cover bg-center bg-fixed text-gray-800 font-sans">
       {/* Glavni Top Bar sistema */}
-      <header className="relative z-40 border-b border-gray-200 bg-white/80 backdrop-blur h-16 sm:h-20 flex items-center pl-3 sm:pl-0">
-        <div className="flex h-full items-center gap-3">
+      <header className="relative z-40 h-16 border-b border-gray-200 sm:h-20">
+        {/* Cement pozadina */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-[url('/cement1.png')] bg-cover bg-center"
+        />
+        {/* Blagi bijeli preloj radi čitljivosti teksta preko slike */}
+        <div aria-hidden="true" className="absolute inset-0 bg-white/45" />
+
+        <div className="relative flex h-full items-center gap-4 pl-3 sm:gap-5 sm:pl-0">
           <img src="/logo.png" alt="Lukavac Cement" className="h-full w-auto" />
           <div>
             <h1 className="text-base sm:text-lg font-bold tracking-tight text-gray-900">
