@@ -18,7 +18,11 @@ self.addEventListener("push", (event) => {
   const options = {
     body: data.body || "",
     icon: "/pwa-192.png",
-    badge: "/pwa-192.png",
+    // Android status bar traku prikazuje samo alfa-kanal ove ikonice (bijeli
+    // silhouette) - pwa-192.png je puna crveno-bijela ikona bez providnosti,
+    // pa je Android tamo prikazivao prazan bijeli kvadrat. badge-icon.png je
+    // providna verzija samo LC znaka, generisana iz logotipa.
+    badge: "/badge-icon.png",
     data: { url: data.url || "/" },
   };
 
