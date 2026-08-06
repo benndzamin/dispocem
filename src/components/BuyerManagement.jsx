@@ -367,7 +367,7 @@ export default function BuyerManagement({
                   className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red"
                 />
                 <label className="text-xs uppercase text-gray-500 font-semibold">
-                  Zahtijeva najavu
+                  Za utovar ovog kupca obavezna je prethodna najava.
                 </label>
               </div>
 
@@ -379,7 +379,7 @@ export default function BuyerManagement({
                   className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red"
                 />
                 <label className="text-xs uppercase text-gray-500 font-semibold">
-                  Zahtijeva odobrenje
+                  Za ovog kupca obavezno je odobrenje najave za utovar.
                 </label>
               </div>
 
@@ -444,7 +444,7 @@ export default function BuyerManagement({
                     scope="col"
                     className="border-b border-gray-200 px-4 py-3 font-semibold whitespace-nowrap"
                   >
-                    Zahtijeva najavu
+                    Obavezna najava
                   </th>
                   <th
                     scope="col"
@@ -525,9 +525,7 @@ export default function BuyerManagement({
                     Uredi
                   </button>
                 </div>
-                <div className="mt-2 text-sm text-gray-600">
-                  {buyer.email}
-                </div>
+                <div className="mt-2 text-sm text-gray-600">{buyer.email}</div>
                 <div className="mt-3 text-sm">
                   <div className="text-xs uppercase text-gray-400">
                     Dozvoljeni artikli
@@ -546,7 +544,7 @@ export default function BuyerManagement({
                     disabled
                     className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red disabled:cursor-not-allowed disabled:opacity-70"
                   />
-                  Zahtijeva najavu
+                  Za utovar ovog kupca obavezna je prethodna najava.
                 </label>
                 <label className="mt-2 flex items-center gap-2 text-sm text-gray-700">
                   <input
@@ -555,7 +553,7 @@ export default function BuyerManagement({
                     disabled
                     className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red disabled:cursor-not-allowed disabled:opacity-70"
                   />
-                  Zahtijeva odobrenje
+                  Za ovog kupca obavezno je odobrenje najave za utovar.
                 </label>
               </div>
             ))}
