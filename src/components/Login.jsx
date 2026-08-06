@@ -48,13 +48,17 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-[url('/background-image.jpg')] bg-cover bg-center font-sans px-4">
       <div className="max-w-md w-full bg-white border border-gray-200 rounded-xl p-6 sm:p-8 shadow-2xl">
         <div className="mb-6 sm:mb-8 flex items-center justify-center gap-4">
-          <img src="/logo.png" alt="Lukavac Cement" className="h-16 sm:h-24 w-auto" />
-          <div>
+          <img
+            src="/logo.png"
+            alt="Lukavac Cement"
+            className="h-16 sm:h-24 w-auto"
+          />
+          <div className="text-center">
             <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
               DISPOCEM LOGISTICS
             </h2>
             <p className="text-sm text-gray-500 mt-1">
-              Sistem za pametno upravljanje otpremom
+              Sistem za najavu utovara
             </p>
           </div>
         </div>
@@ -76,7 +80,7 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100 transition-colors"
-              placeholder="ime.prezime@firma.ba"
+              placeholder="e-mail"
             />
           </div>
 
