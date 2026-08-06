@@ -57,7 +57,7 @@ export default function AnnouncementForm({
     !isBuyer && normalizedBuyerQuery
       ? (buyers || [])
           .filter((buyer) =>
-            buyer.naziv_firme?.toLowerCase().includes(normalizedBuyerQuery),
+            buyer.naziv_firme?.toLowerCase().startsWith(normalizedBuyerQuery),
           )
           .slice(0, 6)
       : [];

@@ -201,11 +201,7 @@ export default function BuyerManagement({
   const filteredBuyers = buyers.filter((buyer) => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return true;
-    return (
-      buyer.naziv_firme?.toLowerCase().includes(term) ||
-      buyer.email?.toLowerCase().includes(term) ||
-      buyer.adresa?.toLowerCase().includes(term)
-    );
+    return buyer.naziv_firme?.toLowerCase().startsWith(term);
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredBuyers.length / pageSize));
@@ -237,7 +233,7 @@ export default function BuyerManagement({
           <div className="relative w-full sm:w-64">
             <input
               type="text"
-              placeholder="Pretraži kupce (firma, email, adresa)..."
+              placeholder="Pretraži kupce po nazivu firme..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
