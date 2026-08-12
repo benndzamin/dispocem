@@ -2,7 +2,9 @@ import { useState } from "react";
 import AnnouncementForm from "./AnnouncementForm";
 import AnnouncementsList from "./AnnouncementsList";
 import NewAnnouncementAlerts from "./NewAnnouncementAlerts";
+import NoticeScheduleBanner from "./NoticeScheduleBanner";
 import useMyAnnouncementAlerts from "../hooks/useMyAnnouncementAlerts";
+import useNoticeBroadcast from "../hooks/useNoticeBroadcast";
 
 export default function KupacDashboard({ user, userProfile }) {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -10,6 +12,7 @@ export default function KupacDashboard({ user, userProfile }) {
   const [notification, setNotification] = useState(null);
   const { alerts: myAlerts, dismiss: dismissMyAlert } =
     useMyAnnouncementAlerts(user?.id);
+  const { pendingBroadcast, acknowledge } = useNoticeBroadcast(user?.id);
 
   const showNotification = (message, type) => {
     setNotification({ message, type });
@@ -18,6 +21,9 @@ export default function KupacDashboard({ user, userProfile }) {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+        <NoticeScheduleBanner />
+      </div>
       <NewAnnouncementAlerts alerts={myAlerts} onDismiss={dismissMyAlert} />
       {notification && (
         <div
@@ -66,6 +72,36 @@ export default function KupacDashboard({ user, userProfile }) {
                 showNotification(message, type);
               }}
             />
+          </div>
+        </div>
+      )}
+
+      {pendingBroadcast && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-gray-900/60 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="notice-broadcast-title"
+            className="w-full max-w-lg rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-2xl shadow-black/10"
+          >
+            <h3
+              id="notice-broadcast-title"
+              className="text-lg font-semibold text-gray-900"
+            >
+              Obavijest
+            </h3>
+            <p className="mt-3 whitespace-pre-wrap text-gray-700">
+              {pendingBroadcast.message}
+            </p>
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={acknowledge}
+                className="rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark"
+              >
+                Razumijem
+              </button>
+            </div>
           </div>
         </div>
       )}

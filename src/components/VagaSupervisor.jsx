@@ -6,6 +6,7 @@ import AnnouncementForm from "./AnnouncementForm";
 import CementCatalogManager from "./CementCatalogManager";
 import NewAnnouncementAlerts from "./NewAnnouncementAlerts";
 import PendingApprovalsList from "./PendingApprovalsList";
+import NoticeScheduleSettings from "./NoticeScheduleSettings";
 import useNewAnnouncementAlerts from "../hooks/useNewAnnouncementAlerts";
 import usePendingApprovalsCount from "../hooks/usePendingApprovalsCount";
 
@@ -15,6 +16,7 @@ const tabs = [
   { key: "cement", label: "Vrste cementa", mobileLabel: "Cement" },
   { key: "announcements", label: "Najave", mobileLabel: "Najave" },
   { key: "approvals", label: "Odobrenja", mobileLabel: "Odobr." },
+  { key: "schedule", label: "Vrijeme najave", mobileLabel: "Raspored" },
 ];
 
 export default function VagaSupervisor({ user }) {
@@ -384,6 +386,14 @@ export default function VagaSupervisor({ user }) {
               </button>
             </div>
           </div>
+        )}
+
+        {activeTab === "schedule" && (
+          <NoticeScheduleSettings
+            user={user}
+            showNotification={showNotification}
+            hideTopBorder
+          />
         )}
       </div>
 

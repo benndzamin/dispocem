@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import useNoticeWorkingHours from "../hooks/useNoticeWorkingHours";
+import { getBuyerBlockMessage } from "../lib/noticeSchedule";
+import NoticeScheduleBanner from "./NoticeScheduleBanner";
 
 function toDateInputValue(date) {
   const year = date.getFullYear();
@@ -34,6 +37,7 @@ export default function AnnouncementForm({
   const [selectedBuyer, setSelectedBuyer] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [inStockNames, setInStockNames] = useState(new Set());
+  const { rows: noticeWorkingHours } = useNoticeWorkingHours();
 
   useEffect(() => {
     const fetchInStock = async () => {
@@ -82,6 +86,14 @@ export default function AnnouncementForm({
     if (!inStockNames.has(vrstaCementa)) {
       onResult?.("Vrsta cementa trenutno nije na stanju.", "error");
       return;
+    }
+
+    if (isBuyer) {
+      const blockMessage = getBuyerBlockMessage(noticeWorkingHours);
+      if (blockMessage) {
+        onResult?.(blockMessage, "error");
+        return;
+      }
     }
 
     setLoading(true);
@@ -164,6 +176,8 @@ export default function AnnouncementForm({
           </span>
         )}
       </div>
+
+      {isBuyer && <NoticeScheduleBanner />}
 
       <div className="grid gap-4 md:grid-cols-2">
         {!isBuyer && (
