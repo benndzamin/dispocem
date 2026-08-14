@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../supabaseClient";
 
 function formatDate(value) {
@@ -6,12 +6,14 @@ function formatDate(value) {
   return value.split("-").reverse().join(".");
 }
 
-export default function PendingApprovalsList() {
+export default function PendingApprovalsList({ currentUser }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [approving, setApproving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [notification, setNotification] = useState(null);
+  const confirmTargetRef = useRef(null);
 
   const showNotification = (message, type = "success") => {
     setNotification({ message, type });
@@ -35,12 +37,79 @@ export default function PendingApprovalsList() {
   };
 
   useEffect(() => {
+    confirmTargetRef.current = confirmTarget;
+  }, [confirmTarget]);
+
+  useEffect(() => {
     fetchItems();
+
+    const channel = supabase
+      .channel(`pending-approvals-list-${crypto.randomUUID()}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "announcements" },
+        (payload) => {
+          const row = payload.new;
+          if (row?.status !== "awaiting_approval") return;
+          setItems((prev) =>
+            prev.some((item) => item.id === row.id) ? prev : [row, ...prev],
+          );
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "announcements" },
+        (payload) => {
+          const row = payload.new;
+          if (!row) return;
+          const wasAwaiting = payload.old?.status === "awaiting_approval";
+          const isAwaiting = row.status === "awaiting_approval";
+
+          if (wasAwaiting && !isAwaiting) {
+            setItems((prev) => prev.filter((item) => item.id !== row.id));
+            if (confirmTargetRef.current?.id === row.id) {
+              setConfirmTarget(null);
+              showNotification("Najava je već obrađena.", "error");
+            }
+          } else if (!wasAwaiting && isAwaiting) {
+            setItems((prev) =>
+              prev.some((item) => item.id === row.id) ? prev : [row, ...prev],
+            );
+          } else if (wasAwaiting && isAwaiting) {
+            setItems((prev) =>
+              prev.map((item) =>
+                item.id === row.id ? { ...item, ...row } : item,
+              ),
+            );
+            if (confirmTargetRef.current?.id === row.id) {
+              setConfirmTarget((prev) => (prev ? { ...prev, ...row } : prev));
+            }
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "announcements" },
+        (payload) => {
+          const oldRow = payload.old;
+          if (oldRow?.status !== "awaiting_approval") return;
+          setItems((prev) => prev.filter((item) => item.id !== oldRow.id));
+          if (confirmTargetRef.current?.id === oldRow.id) {
+            setConfirmTarget(null);
+            showNotification("Najava je već obrisana.", "error");
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const openConfirm = (item) => setConfirmTarget(item);
   const closeConfirm = () => {
-    if (!approving) setConfirmTarget(null);
+    if (!approving && !deleting) setConfirmTarget(null);
   };
 
   const handleApprove = async () => {
@@ -73,6 +142,101 @@ export default function PendingApprovalsList() {
 
     setItems((prev) => prev.filter((item) => item.id !== confirmTarget.id));
     showNotification(`Najava za ${confirmTarget.firma} je odobrena.`);
+    setConfirmTarget(null);
+  };
+
+  const handleDelete = async () => {
+    if (!confirmTarget) return;
+    setDeleting(true);
+
+    const { data, error } = await supabase
+      .from("announcements")
+      .delete()
+      .eq("id", confirmTarget.id)
+      .select();
+
+    setDeleting(false);
+
+    if (error) {
+      showNotification("Greška pri brisanju najave: " + error.message, "error");
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      setConfirmTarget(null);
+      await fetchItems();
+      showNotification(
+        "Najava se više ne može obrisati (u međuvremenu je promijenjena).",
+        "error",
+      );
+      return;
+    }
+
+    const deletedByLabel = currentUser?.email || "Nepoznat korisnik";
+
+    supabase
+      .rpc("log_announcement_deletion", {
+        p_announcement_id: confirmTarget.id,
+        p_firma: confirmTarget.firma,
+        p_vrsta_cementa: confirmTarget.vrsta_cementa,
+        p_created_by: confirmTarget.created_by,
+        p_deleted_by_label: deletedByLabel,
+        p_deleted_by_role: "wb_supervisor",
+        p_was_awaiting_approval: true,
+      })
+      .then(({ error: logError }) => {
+        if (logError) {
+          console.error("Logovanje brisanja nije uspjelo:", logError);
+        }
+      });
+
+    supabase.functions
+      .invoke("send-push-notification", {
+        body: {
+          action: "deleted",
+          firma: confirmTarget.firma,
+          vrstaCementa: confirmTarget.vrsta_cementa,
+          deletedByLabel,
+          deletedByRole: "wb_supervisor",
+          actorUserId: currentUser?.id,
+          // Ova najava je bila "čeka odobrenje" pa je operater nikad nije ni
+          // vidio (RLS je skriva od operatera) - ne treba mu notifikacija o
+          // brisanju nečega o čemu ne zna.
+          wasAwaitingApproval: true,
+        },
+      })
+      .catch((err) =>
+        console.error("Slanje push notifikacije nije uspjelo:", err),
+      );
+
+    if (confirmTarget.created_by) {
+      supabase.functions
+        .invoke("send-status-push-notification", {
+          body: {
+            action: "deleted",
+            userId: confirmTarget.created_by,
+            vrstaCementa: confirmTarget.vrsta_cementa,
+          },
+        })
+        .catch((err) =>
+          console.error("Slanje push notifikacije kupcu nije uspjelo:", err),
+        );
+
+      supabase.functions
+        .invoke("send-announcement-email", {
+          body: {
+            action: "deleted",
+            firma: confirmTarget.firma,
+            vrstaCementa: confirmTarget.vrsta_cementa,
+            deletedByLabel,
+            buyerId: confirmTarget.created_by,
+          },
+        })
+        .catch((err) => console.error("Slanje emaila nije uspjelo:", err));
+    }
+
+    setItems((prev) => prev.filter((item) => item.id !== confirmTarget.id));
+    showNotification(`Najava za ${confirmTarget.firma} je obrisana.`);
     setConfirmTarget(null);
   };
 
@@ -210,17 +374,53 @@ export default function PendingApprovalsList() {
               <button
                 type="button"
                 onClick={closeConfirm}
-                disabled={approving}
+                disabled={approving || deleting}
                 className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Odustani
               </button>
               <button
                 type="button"
-                onClick={handleApprove}
-                disabled={approving}
-                className="rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={handleDelete}
+                disabled={approving || deleting}
+                className="flex items-center justify-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
+                <svg
+                  className="h-4 w-4 shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                </svg>
+                {deleting ? "Brisanje..." : "Obriši"}
+              </button>
+              <button
+                type="button"
+                onClick={handleApprove}
+                disabled={approving || deleting}
+                className="flex items-center justify-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <svg
+                  className="h-4 w-4 shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
                 {approving ? "Odobravanje..." : "Odobri"}
               </button>
             </div>

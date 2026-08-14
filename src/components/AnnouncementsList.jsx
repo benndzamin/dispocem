@@ -157,7 +157,7 @@ export default function AnnouncementsList({
     if (role === "buyer") {
       const ONE_HOUR_MS = 60 * 60 * 1000;
       return (
-        item.status === "pending" &&
+        (item.status === "pending" || item.status === "awaiting_approval") &&
         Date.now() - new Date(item.created_at).getTime() < ONE_HOUR_MS
       );
     }
@@ -203,6 +203,8 @@ export default function AnnouncementsList({
         ? deleteTarget.firma
         : currentUser?.email || "Nepoznat korisnik";
 
+    const wasAwaitingApproval = deleteTarget.status === "awaiting_approval";
+
     supabase
       .rpc("log_announcement_deletion", {
         p_announcement_id: deleteTarget.id,
@@ -211,6 +213,7 @@ export default function AnnouncementsList({
         p_created_by: deleteTarget.created_by,
         p_deleted_by_label: deletedByLabel,
         p_deleted_by_role: role,
+        p_was_awaiting_approval: wasAwaitingApproval,
       })
       .then(({ error: logError }) => {
         if (logError) {
@@ -227,6 +230,7 @@ export default function AnnouncementsList({
           deletedByLabel,
           deletedByRole: role,
           actorUserId: currentUser?.id,
+          wasAwaitingApproval,
         },
       })
       .catch((err) =>

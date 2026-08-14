@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import BuyerManagement from "./BuyerManagement";
+import DispatchChart from "./DispatchChart";
 import AnnouncementsList from "./AnnouncementsList";
 import AnnouncementForm from "./AnnouncementForm";
 import CementCatalogManager from "./CementCatalogManager";
@@ -224,18 +225,6 @@ export default function VagaSupervisor({ user }) {
 
               <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4">
                 <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500 sm:text-xs">
-                  In progress
-                </div>
-                <div className="mt-2 text-xl font-bold text-gray-900 sm:mt-3 sm:text-2xl md:text-3xl">
-                  {stats.inProgressAnnouncements}
-                </div>
-                <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
-                  Najave u toku utovara
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4">
-                <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500 sm:text-xs">
                   Pending
                 </div>
                 <div className="mt-2 text-xl font-bold text-gray-900 sm:mt-3 sm:text-2xl md:text-3xl">
@@ -257,7 +246,21 @@ export default function VagaSupervisor({ user }) {
                   Najave koje čekaju odobrenje
                 </div>
               </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500 sm:text-xs">
+                  In progress
+                </div>
+                <div className="mt-2 text-xl font-bold text-gray-900 sm:mt-3 sm:text-2xl md:text-3xl">
+                  {stats.inProgressAnnouncements}
+                </div>
+                <div className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
+                  Najave u toku utovara
+                </div>
+              </div>
             </div>
+
+            <DispatchChart refreshKey={refreshKey} />
 
             <div className="grid gap-4 xl:grid-cols-1">
               <div className="rounded-3xl border border-gray-200 bg-gray-50 p-6">
@@ -296,7 +299,6 @@ export default function VagaSupervisor({ user }) {
                   <button
                     type="button"
                     onClick={() => {
-                      setActiveTab("buyers");
                       setAddBuyerSignal((value) => value + 1);
                     }}
                     className="rounded-2xl border border-gray-200 bg-white px-3 py-3 text-left text-gray-900 transition hover:border-brand-red hover:bg-red-50 sm:px-4 sm:py-5"
@@ -360,31 +362,32 @@ export default function VagaSupervisor({ user }) {
           />
         )}
 
-        {activeTab === "approvals" && <PendingApprovalsList />}
+        {activeTab === "approvals" && (
+          <PendingApprovalsList currentUser={user} />
+        )}
+
+        <BuyerManagement
+          showNotification={showNotification}
+          hideTopBorder
+          addModalSignal={addBuyerSignal}
+          isActiveTab={activeTab === "buyers"}
+        />
 
         {activeTab === "buyers" && (
-          <div className="space-y-6">
-            <BuyerManagement
-              showNotification={showNotification}
-              hideTopBorder
-              addModalSignal={addBuyerSignal}
-            />
-            {/* Buyer Deletion Section */}
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                Obriši kupca
-              </h3>
-              <p className="text-sm text-gray-500 mb-4">
-                Odaberite kupca iz liste i potvrdite brisanje.
-              </p>
-              <button
-                type="button"
-                onClick={openDeleteModal}
-                className="rounded-md bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-              >
-                Otvori modal za brisanje
-              </button>
-            </div>
+          <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-6">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Obriši kupca
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Odaberite kupca iz liste i potvrdite brisanje.
+            </p>
+            <button
+              type="button"
+              onClick={openDeleteModal}
+              className="rounded-md bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+            >
+              Otvori modal za brisanje
+            </button>
           </div>
         )}
 

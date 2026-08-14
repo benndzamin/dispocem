@@ -45,12 +45,17 @@ Deno.serve(async (req) => {
   // ide samo supervizoru. Kreiranje i brisanje od strane admina/supervizora i
   // dalje ide objema ulogama, kao i do sad. Odobrenje najave (iz "čeka
   // odobrenje" u "na čekanju") tiče se samo operatera - oni je tek sad vide.
+  // Brisanje najave koja je jos bila "čeka odobrenje" operater nikad nije ni
+  // vidio (RLS ga sakriva od operatera), pa se o tom brisanju obavjestava
+  // samo supervizor.
   const targetRoles =
     payload.action === "approved"
       ? ["wb_operator"]
       : payload.action === "deleted" && payload.deletedByRole === "wb_operator"
         ? ["wb_supervisor"]
-        : ["wb_supervisor", "wb_operator"];
+        : payload.action === "deleted" && payload.wasAwaitingApproval
+          ? ["wb_supervisor"]
+          : ["wb_supervisor", "wb_operator"];
 
   const { data: recipients, error: recipientsError } = await supabase
     .from("users")

@@ -5,6 +5,7 @@ export default function BuyerManagement({
   showNotification = () => {},
   hideTopBorder = false,
   addModalSignal = 0,
+  isActiveTab = true,
 }) {
   const [buyers, setBuyers] = useState([]);
   const [cementTypes, setCementTypes] = useState([]);
@@ -18,7 +19,7 @@ export default function BuyerManagement({
   const [announcementRequired, setAnnouncementRequired] = useState(true);
   const [approvalRequired, setApprovalRequired] = useState(false);
   const [message, setMessage] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(() => Boolean(addModalSignal));
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("create");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -100,6 +101,11 @@ export default function BuyerManagement({
     fetchBuyers();
     fetchCementTypes();
   }, []);
+
+  useEffect(() => {
+    if (addModalSignal > 0) openBuyerModal();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addModalSignal]);
 
   const updateBuyerProfile = async (buyerId, updates) => {
     setLoading(true);
@@ -214,7 +220,9 @@ export default function BuyerManagement({
   const rangeEnd = Math.min(currentPage * pageSize, filteredBuyers.length);
 
   return (
-    <div
+    <>
+      {isActiveTab && (
+      <div
       className={`bg-white border-gray-200 p-6 ${
         hideTopBorder ? "border-x border-b rounded-b-xl" : "border rounded-xl"
       }`}
@@ -251,162 +259,6 @@ export default function BuyerManagement({
           </button>
         </div>
       </div>
-
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4">
-          <div className="w-full max-w-3xl rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-2xl shadow-black/10">
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900">
-                  {modalMode === "edit" ? "Uredi kupca" : "Dodaj novog kupca"}
-                </h4>
-                <p className="text-sm text-gray-500">
-                  {modalMode === "edit"
-                    ? "Ažurirajte podatke postojećeg kupca."
-                    : "Kreirajte novi nalog kupca i definišite dozvoljene artikle."}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeBuyerModal}
-                className="rounded-full border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              >
-                Zatvori
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    disabled={modalMode === "edit"}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
-                  />
-                </div>
-
-                {modalMode === "create" && (
-                  <div>
-                    <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
-                      Lozinka
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
-                    Naziv firme
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={nazivFirme}
-                    onChange={(e) => setNazivFirme(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
-                    Adresa
-                  </label>
-                  <input
-                    type="text"
-                    value={adresa}
-                    onChange={(e) => setAdresa(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
-                <label className="text-xs uppercase text-gray-500 font-semibold">
-                  Dozvoljeni artikli:
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {cementTypes.map((cement) => (
-                    <label
-                      key={cement.value}
-                      className="flex items-center gap-1 text-sm text-gray-900"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={dozvoljeniArtikli.includes(cement.value)}
-                        onChange={() => handleCheckboxChange(cement.value)}
-                        className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red"
-                      />
-                      {cement.label}
-                      {cement.na_stanju === false && (
-                        <span className="text-xs text-gray-400">
-                          (nema na stanju)
-                        </span>
-                      )}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 text-sm text-gray-900">
-                <input
-                  type="checkbox"
-                  checked={announcementRequired}
-                  onChange={(e) => setAnnouncementRequired(e.target.checked)}
-                  className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red"
-                />
-                <label className="text-xs uppercase text-gray-500 font-semibold">
-                  Za utovar ovog kupca obavezna je prethodna najava.
-                </label>
-              </div>
-
-              <div className="flex items-center gap-2 text-sm text-gray-900">
-                <input
-                  type="checkbox"
-                  checked={approvalRequired}
-                  onChange={(e) => setApprovalRequired(e.target.checked)}
-                  className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red"
-                />
-                <label className="text-xs uppercase text-gray-500 font-semibold">
-                  Za ovog kupca obavezno je odobrenje najave za utovar.
-                </label>
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={closeBuyerModal}
-                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Odustani
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark disabled:opacity-50"
-                >
-                  {loading
-                    ? "Spremanje..."
-                    : modalMode === "edit"
-                      ? "Ažuriraj kupca"
-                      : "Dodaj kupca"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Buyer List */}
 
@@ -642,6 +494,164 @@ export default function BuyerManagement({
           </div>
         </>
       )}
-    </div>
+      </div>
+      )}
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4">
+          <div className="w-full max-w-3xl rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-2xl shadow-black/10">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900">
+                  {modalMode === "edit" ? "Uredi kupca" : "Dodaj novog kupca"}
+                </h4>
+                <p className="text-sm text-gray-500">
+                  {modalMode === "edit"
+                    ? "Ažurirajte podatke postojećeg kupca."
+                    : "Kreirajte novi nalog kupca i definišite dozvoljene artikle."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeBuyerModal}
+                className="rounded-full border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Zatvori
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    disabled={modalMode === "edit"}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+                  />
+                </div>
+
+                {modalMode === "create" && (
+                  <div>
+                    <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
+                      Lozinka
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
+                    Naziv firme
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={nazivFirme}
+                    onChange={(e) => setNazivFirme(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
+                    Adresa
+                  </label>
+                  <input
+                    type="text"
+                    value={adresa}
+                    onChange={(e) => setAdresa(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
+                <label className="text-xs uppercase text-gray-500 font-semibold">
+                  Dozvoljeni artikli:
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {cementTypes.map((cement) => (
+                    <label
+                      key={cement.value}
+                      className="flex items-center gap-1 text-sm text-gray-900"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={dozvoljeniArtikli.includes(cement.value)}
+                        onChange={() => handleCheckboxChange(cement.value)}
+                        className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red"
+                      />
+                      {cement.label}
+                      {cement.na_stanju === false && (
+                        <span className="text-xs text-gray-400">
+                          (nema na stanju)
+                        </span>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-sm text-gray-900">
+                <input
+                  type="checkbox"
+                  checked={announcementRequired}
+                  onChange={(e) => setAnnouncementRequired(e.target.checked)}
+                  className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red"
+                />
+                <label className="text-xs uppercase text-gray-500 font-semibold">
+                  Za utovar ovog kupca obavezna je prethodna najava.
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2 text-sm text-gray-900">
+                <input
+                  type="checkbox"
+                  checked={approvalRequired}
+                  onChange={(e) => setApprovalRequired(e.target.checked)}
+                  className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red"
+                />
+                <label className="text-xs uppercase text-gray-500 font-semibold">
+                  Za ovog kupca obavezno je odobrenje najave za utovar.
+                </label>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={closeBuyerModal}
+                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Odustani
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark disabled:opacity-50"
+                >
+                  {loading
+                    ? "Spremanje..."
+                    : modalMode === "edit"
+                      ? "Ažuriraj kupca"
+                      : "Dodaj kupca"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

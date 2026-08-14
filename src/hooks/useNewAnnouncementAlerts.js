@@ -80,12 +80,15 @@ export default function useNewAnnouncementAlerts(currentUserId, viewerRole) {
 
           // Ko god je obrisao najavu ne treba vidjeti toast o svojoj
           // vlastitoj akciji, a operateri ne treba da vide toast kad DRUGI
-          // operater obrise najavu (peer buka) - ali red se i dalje mora
-          // ukloniti iz njihove tabele, zato se alert i dalje dodaje, samo
-          // bez poruke.
+          // operater obrise najavu (peer buka), niti kad je obrisana najava
+          // bila "čeka odobrenje" - tu najavu operater nikad nije ni vidio
+          // (RLS je skriva od njega), pa ne zna o čemu je poruka. Red se i
+          // dalje mora ukloniti iz njihove tabele, zato se alert i dalje
+          // dodaje, samo bez poruke.
           const silent =
             row.deleted_by === currentUserId ||
-            (viewerRole === "wb_operator" && row.deleted_by_role === "wb_operator");
+            (viewerRole === "wb_operator" && row.deleted_by_role === "wb_operator") ||
+            (viewerRole === "wb_operator" && row.was_awaiting_approval);
 
           const who =
             row.deleted_by_role === "buyer" ? row.firma : row.deleted_by_label;
