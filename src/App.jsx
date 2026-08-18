@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { supabase } from "./supabaseClient";
 import Login from "./components/Login";
 import AdminDashboard from "./components/AdminDashboard";
@@ -69,17 +70,24 @@ export default function App() {
         <div className="text-sm uppercase tracking-widest text-gray-500 animate-pulse">
           Učitavanje sistema...
         </div>
+        <Analytics />
       </div>
     );
   }
 
   if (!session) {
-    return <Login />;
+    return (
+      <>
+        <Login />
+        <Analytics />
+      </>
+    );
   }
 
   // Zajednički Layout sa Navigacijom / Logout dugmetom za ulogovane korisnike
   return (
     <div className="min-h-screen bg-[url('/background-image.jpg')] bg-cover bg-center bg-fixed text-gray-800 font-sans">
+      <Analytics />
       {/* Glavni Top Bar sistema */}
       <header className="relative z-40 h-16 border-b border-gray-200 sm:h-20">
         {/* Cement pozadina */}
