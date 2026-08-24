@@ -112,8 +112,8 @@ export default function AnnouncementsList({
     window.setTimeout(() => setNotification(null), 3000);
   };
 
-  const fetchAnnouncements = async () => {
-    setLoading(true);
+  const fetchAnnouncements = async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     let query = supabase
       .from("announcements")
       .select("*")
@@ -131,7 +131,7 @@ export default function AnnouncementsList({
         ? supabase.rpc("get_pending_najave_for_operator")
         : Promise.resolve({ data: [], error: null }),
     ]);
-    setLoading(false);
+    if (!silent) setLoading(false);
 
     if (error) {
       showNotification(
@@ -160,7 +160,10 @@ export default function AnnouncementsList({
   // lista da bi se novododati stub redovi pojavili i bez rucnog osvjezavanja.
   useEffect(() => {
     if (role !== "wb_operator") return;
-    const intervalId = window.setInterval(fetchAnnouncements, 20000);
+    const intervalId = window.setInterval(
+      () => fetchAnnouncements({ silent: true }),
+      20000,
+    );
     return () => window.clearInterval(intervalId);
   }, [role, currentUser?.id]);
 
