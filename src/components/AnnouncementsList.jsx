@@ -86,41 +86,74 @@ export default function AnnouncementsList({
       query = query.neq("status", "awaiting_approval");
     }
 
-    const { data, error } = await query;
+    const [{ data, error }, pendingResult] = await Promise.all([
+      query,
+      role === "wb_operator"
+        ? supabase.rpc("get_pending_najave_for_operator")
+        : Promise.resolve({ data: [], error: null }),
+    ]);
     setLoading(false);
-    if (!error) {
-      setAnnouncements(data || []);
-    } else {
+
+    if (error) {
       showNotification(
         "Greška pri učitavanju najava: " + error.message,
         "error",
       );
+      return;
     }
+
+    if (pendingResult.error) {
+      console.error(
+        "Učitavanje najava na čekanju nije uspjelo:",
+        pendingResult.error,
+      );
+    }
+
+    setAnnouncements([...(pendingResult.data || []), ...(data || [])]);
   };
 
   useEffect(() => {
     fetchAnnouncements();
   }, [role, currentUser?.id, refreshKey]);
 
+  // Operater ne moze dobiti realtime obavijest o novoj "awaiting_approval"
+  // najavi (RLS je skriva i od Realtime-a), pa se povremeno ponovo ucitava
+  // lista da bi se novododati stub redovi pojavili i bez rucnog osvjezavanja.
+  useEffect(() => {
+    if (role !== "wb_operator") return;
+    const intervalId = window.setInterval(fetchAnnouncements, 20000);
+    return () => window.clearInterval(intervalId);
+  }, [role, currentUser?.id]);
+
   useEffect(() => {
     if (!newAlerts?.length) return;
     setAnnouncements((prev) => {
       const existingIds = new Set(prev.map((a) => a.id));
-      const toAdd = newAlerts
-        .filter((a) => a.type === "insert")
+      const insertAlerts = newAlerts.filter(
+        (a) => a.type === "insert" && a.row,
+      );
+      // Neki "insert" alert zapravo znaci "ovaj red je do sad bio skriven, a
+      // sad je vidljiv" (npr. operaterov awaiting_approval stub red koji je
+      // upravo odobren) - ako taj id vec postoji lokalno, tretiraj ga kao
+      // update umjesto da ga odbacis, inace red ostane "zaglavljen" na
+      // starom statusu/izgledu.
+      const toAdd = insertAlerts
         .map((a) => a.row)
-        .filter((row) => row && !existingIds.has(row.id));
+        .filter((row) => !existingIds.has(row.id));
       const toRemoveIds = new Set(
         newAlerts
           .filter((a) => a.type === "delete")
           .map((a) => a.row?.id)
           .filter(Boolean),
       );
-      const updates = new Map(
-        newAlerts
+      const updates = new Map([
+        ...newAlerts
           .filter((a) => a.type === "update" && a.row?.id)
           .map((a) => [a.row.id, a.row]),
-      );
+        ...insertAlerts
+          .filter((a) => existingIds.has(a.row.id))
+          .map((a) => [a.row.id, a.row]),
+      ]);
 
       let next = prev;
       if (toRemoveIds.size > 0) {
@@ -139,6 +172,9 @@ export default function AnnouncementsList({
   }, [newAlerts]);
 
   const highlightedIds = new Set((newAlerts || []).map((a) => a.id));
+  const approvedFlashIds = new Set(
+    (newAlerts || []).filter((a) => a.reason === "approved").map((a) => a.id),
+  );
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -154,6 +190,9 @@ export default function AnnouncementsList({
   };
 
   const canDelete = (item) => {
+    if (item.status === "awaiting_approval" && role === "wb_operator") {
+      return false;
+    }
     if (role === "buyer") {
       const ONE_HOUR_MS = 60 * 60 * 1000;
       return (
@@ -537,15 +576,23 @@ export default function AnnouncementsList({
                 </tr>
               </thead>
               <tbody className="bg-white text-gray-700">
-                {paginatedAnnouncements.map((item) => (
+                {paginatedAnnouncements.map((item) => {
+                  const isPendingApprovalStub =
+                    item.status === "awaiting_approval" &&
+                    role === "wb_operator";
+                  return (
                   <tr
                     key={item.id}
                     className={`border-b last:border-b-0 transition-colors duration-700 ${
-                      highlightedIds.has(item.id)
-                        ? "border-blue-200 bg-blue-50 hover:bg-blue-100"
-                        : item.status === "completed"
-                          ? "border-gray-200 bg-gray-50 opacity-60"
-                          : "border-gray-200 hover:bg-gray-50"
+                      isPendingApprovalStub
+                        ? "border-amber-200 border-dashed bg-amber-50/60 text-gray-500"
+                        : approvedFlashIds.has(item.id)
+                          ? "border-gray-200 hover:bg-gray-50 animate-flash-approved"
+                          : highlightedIds.has(item.id)
+                            ? "border-blue-200 bg-blue-50 hover:bg-blue-100"
+                            : item.status === "completed"
+                              ? "border-gray-200 bg-gray-50 opacity-60"
+                              : "border-gray-200 hover:bg-gray-50"
                     }`}
                   >
                     <td
@@ -584,63 +631,91 @@ export default function AnnouncementsList({
                     <td className="whitespace-nowrap px-3 py-3">
                       {item.registarske_oznake || "-"}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-3 font-semibold text-brand-red">
-                      {item.status}
+                    <td className="whitespace-nowrap px-3 py-3">
+                      {isPendingApprovalStub ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                          ⏳ Čeka odobrenje
+                        </span>
+                      ) : (
+                        <span className="font-semibold text-brand-red">
+                          {item.status}
+                        </span>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-3 py-3">
-                      <div className="flex flex-nowrap gap-2">
-                        {role !== "buyer" && (
+                      {isPendingApprovalStub ? (
+                        <span className="text-xs italic text-gray-400">
+                          — čeka odobrenje supervizora —
+                        </span>
+                      ) : (
+                        <div className="flex flex-nowrap gap-2">
+                          {role !== "buyer" && (
+                            <button
+                              type="button"
+                              onClick={() => openStatusModal(item)}
+                              className="whitespace-nowrap rounded-lg bg-brand-red hover:bg-brand-red-dark text-white px-3 py-2 text-xs font-medium transition-colors"
+                            >
+                              Promijeni status
+                            </button>
+                          )}
+                          {canDelete(item) && (
+                            <button
+                              type="button"
+                              onClick={() => openDeleteModal(item)}
+                              className="whitespace-nowrap rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 hover:bg-red-100"
+                            >
+                              Obriši
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={() => openStatusModal(item)}
-                            className="whitespace-nowrap rounded-lg bg-brand-red hover:bg-brand-red-dark text-white px-3 py-2 text-xs font-medium transition-colors"
+                            onClick={() => openHistoryModal(item)}
+                            className="whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs text-gray-600 hover:bg-gray-100 transition-colors"
                           >
-                            Promijeni status
+                            Historija
                           </button>
-                        )}
-                        {canDelete(item) && (
-                          <button
-                            type="button"
-                            onClick={() => openDeleteModal(item)}
-                            className="whitespace-nowrap rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 hover:bg-red-100"
-                          >
-                            Obriši
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => openHistoryModal(item)}
-                          className="whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs text-gray-600 hover:bg-gray-100 transition-colors"
-                        >
-                          Historija
-                        </button>
-                      </div>
+                        </div>
+                      )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           <div className="space-y-3 md:hidden">
-            {paginatedAnnouncements.map((item) => (
+            {paginatedAnnouncements.map((item) => {
+              const isPendingApprovalStub =
+                item.status === "awaiting_approval" && role === "wb_operator";
+              return (
               <div
                 key={item.id}
                 className={`rounded-xl border p-4 transition-colors duration-700 ${
-                  highlightedIds.has(item.id)
-                    ? "border-blue-200 bg-blue-50"
-                    : item.status === "completed"
-                      ? "border-gray-200 bg-gray-50 opacity-60"
-                      : "border-gray-200 bg-white"
+                  isPendingApprovalStub
+                    ? "border-amber-200 border-dashed bg-amber-50/60"
+                    : approvedFlashIds.has(item.id)
+                      ? "border-gray-200 bg-white animate-flash-approved"
+                      : highlightedIds.has(item.id)
+                        ? "border-blue-200 bg-blue-50"
+                        : item.status === "completed"
+                          ? "border-gray-200 bg-gray-50 opacity-60"
+                          : "border-gray-200 bg-white"
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="font-semibold text-gray-900">
                     {item.firma}
                   </div>
-                  <div className="whitespace-nowrap text-xs font-semibold uppercase text-brand-red">
-                    {item.status}
-                  </div>
+                  {isPendingApprovalStub ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                      ⏳ Čeka odobrenje
+                    </span>
+                  ) : (
+                    <div className="whitespace-nowrap text-xs font-semibold uppercase text-brand-red">
+                      {item.status}
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-2 text-sm text-gray-700">
@@ -675,35 +750,42 @@ export default function AnnouncementsList({
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {role !== "buyer" && (
+                {isPendingApprovalStub ? (
+                  <div className="mt-4 text-xs italic text-gray-400">
+                    — čeka odobrenje supervizora —
+                  </div>
+                ) : (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {role !== "buyer" && (
+                      <button
+                        type="button"
+                        onClick={() => openStatusModal(item)}
+                        className="rounded-lg bg-brand-red hover:bg-brand-red-dark text-white px-3 py-2 text-xs font-medium transition-colors"
+                      >
+                        Promijeni status
+                      </button>
+                    )}
+                    {canDelete(item) && (
+                      <button
+                        type="button"
+                        onClick={() => openDeleteModal(item)}
+                        className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 hover:bg-red-100"
+                      >
+                        Obriši
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => openStatusModal(item)}
-                      className="rounded-lg bg-brand-red hover:bg-brand-red-dark text-white px-3 py-2 text-xs font-medium transition-colors"
+                      onClick={() => openHistoryModal(item)}
+                      className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs text-gray-600 hover:bg-gray-100 transition-colors"
                     >
-                      Promijeni status
+                      Historija
                     </button>
-                  )}
-                  {canDelete(item) && (
-                    <button
-                      type="button"
-                      onClick={() => openDeleteModal(item)}
-                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 hover:bg-red-100"
-                    >
-                      Obriši
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => openHistoryModal(item)}
-                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs text-gray-600 hover:bg-gray-100 transition-colors"
-                  >
-                    Historija
-                  </button>
-                </div>
+                  </div>
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

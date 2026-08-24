@@ -62,6 +62,7 @@ export default function useNewAnnouncementAlerts(currentUserId, viewerRole) {
             id: row.id,
             type: "insert",
             row,
+            reason: "approved",
             message: `${row.firma || "Kupac"} — najava (${row.vrsta_cementa}) je odobrena, spremna za utovar.`,
             silent: viewerRole === "wb_supervisor",
           });
