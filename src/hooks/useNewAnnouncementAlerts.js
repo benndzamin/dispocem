@@ -50,22 +50,42 @@ export default function useNewAnnouncementAlerts(currentUserId, viewerRole) {
         (payload) => {
           const row = payload.new;
           const oldRow = payload.old;
-          const wasAwaitingApproval = oldRow?.status === "awaiting_approval";
-          const isNowApproved = row?.status && row.status !== "awaiting_approval";
-          if (!row || !wasAwaitingApproval || !isNowApproved) return;
+          if (!row || !oldRow) return;
 
-          // Ova najava je do sad bila skrivena (čekala odobrenje) - sad
-          // postaje vidljiva. Tretiramo je kao "insert" da uđe u tabelu.
-          // Operateru se prikazuje toast, supervizoru samo tiho uđe u
-          // tabelu (već ima svoju potvrdu iz ekrana za odobravanje).
-          addAlert({
-            id: row.id,
-            type: "insert",
-            row,
-            reason: "approved",
-            message: `${row.firma || "Kupac"} — najava (${row.vrsta_cementa}) je odobrena, spremna za utovar.`,
-            silent: viewerRole === "wb_supervisor",
-          });
+          const wasAwaitingApproval = oldRow.status === "awaiting_approval";
+          const isNowApproved = row.status && row.status !== "awaiting_approval";
+
+          if (wasAwaitingApproval && isNowApproved) {
+            // Ova najava je do sad bila skrivena (čekala odobrenje) - sad
+            // postaje vidljiva. Tretiramo je kao "insert" da uđe u tabelu.
+            // Operateru se prikazuje toast, supervizoru samo tiho uđe u
+            // tabelu (već ima svoju potvrdu iz ekrana za odobravanje).
+            addAlert({
+              id: row.id,
+              type: "insert",
+              row,
+              reason: "approved",
+              message: `${row.firma || "Kupac"} — najava (${row.vrsta_cementa}) je odobrena, spremna za utovar.`,
+              silent: viewerRole === "wb_supervisor",
+            });
+            return;
+          }
+
+          if (row.status !== oldRow.status) {
+            // Bilo koja druga promjena statusa (npr. "expedicija" postavi
+            // in_progress direktno u bazi) - odrazi se uživo u tabeli (flash
+            // + ažuriran status), bez potrebe za ručnim refresh-om. Bez
+            // toasta (silent) - ko je promjenu uradio kroz dispocem već vidi
+            // svoju potvrdu (showNotification u AnnouncementsList).
+            addAlert({
+              id: row.id,
+              type: "update",
+              row,
+              reason: "status_changed",
+              message: `${row.firma || "Kupac"} — status najave (${row.vrsta_cementa}) promijenjen: ${oldRow.status} → ${row.status}.`,
+              silent: true,
+            });
+          }
         },
       )
       .on(

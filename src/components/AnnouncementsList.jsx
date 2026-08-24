@@ -214,8 +214,13 @@ export default function AnnouncementsList({
   }, [newAlerts]);
 
   const highlightedIds = new Set((newAlerts || []).map((a) => a.id));
-  const approvedFlashIds = new Set(
-    (newAlerts || []).filter((a) => a.reason === "approved").map((a) => a.id),
+  // Zeleni "3x blink" - i za odobrenu najavu (awaiting_approval -> pending)
+  // i za bilo koju drugu promjenu statusa koja stigne uživo (npr. "expedicija"
+  // postavi in_progress direktno u bazi).
+  const flashIds = new Set(
+    (newAlerts || [])
+      .filter((a) => a.reason === "approved" || a.reason === "status_changed")
+      .map((a) => a.id),
   );
 
   const handleSort = (field) => {
@@ -727,7 +732,7 @@ export default function AnnouncementsList({
                     className={`border-b last:border-b-0 transition-colors duration-700 ${
                       isPendingApprovalStub
                         ? "border-amber-200 border-dashed bg-amber-50/60 text-gray-500"
-                        : approvedFlashIds.has(item.id)
+                        : flashIds.has(item.id)
                           ? "border-gray-200 hover:bg-gray-50 animate-flash-approved"
                           : highlightedIds.has(item.id)
                             ? "border-blue-200 bg-blue-50 hover:bg-blue-100"
@@ -835,7 +840,7 @@ export default function AnnouncementsList({
                 className={`rounded-xl border p-4 transition-colors duration-700 ${
                   isPendingApprovalStub
                     ? "border-amber-200 border-dashed bg-amber-50/60"
-                    : approvedFlashIds.has(item.id)
+                    : flashIds.has(item.id)
                       ? "border-gray-200 bg-white animate-flash-approved"
                       : highlightedIds.has(item.id)
                         ? "border-blue-200 bg-blue-50"
