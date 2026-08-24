@@ -8,6 +8,30 @@ const STATUS_ORDER = {
   completed: 3,
 };
 
+// Poredi samo datum (bez vremena), u lokalnoj zoni - izbjegava timezone
+// pomjeranja koja bi nastala poređenjem Date objekata iz <input type="date">
+// direktno sa punim ISO timestampom iz created_at.
+function toLocalDateNumber(date) {
+  return date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
+}
+
+function isWithinDateRange(createdAt, dateFrom, dateTo) {
+  if (!dateFrom && !dateTo) return true;
+  if (!createdAt) return false;
+
+  const createdNumber = toLocalDateNumber(new Date(createdAt));
+
+  if (dateFrom) {
+    const [y, m, d] = dateFrom.split("-").map(Number);
+    if (createdNumber < y * 10000 + m * 100 + d) return false;
+  }
+  if (dateTo) {
+    const [y, m, d] = dateTo.split("-").map(Number);
+    if (createdNumber > y * 10000 + m * 100 + d) return false;
+  }
+  return true;
+}
+
 const COLUMNS = [
   { key: "firma", label: "Firma", accessor: (item) => item.firma || "" },
   {
@@ -67,6 +91,21 @@ export default function AnnouncementsList({
   const [pageSize, setPageSize] = useState(10);
   const [sortField, setSortField] = useState("created_at");
   const [sortDirection, setSortDirection] = useState("desc");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [cementFilter, setCementFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [showCompleted, setShowCompleted] = useState(false);
+
+  // Filter modal - "draft" polja se mijenjaju dok korisnik bira opcije, a
+  // stvarno primijenjeni filteri (iznad) se mijenjaju tek na "Primijeni",
+  // da izmjena selecta ne bi odmah (i zbunjujuce) preslozila tabelu.
+  const [filterModalOpen, setFilterModalOpen] = useState(false);
+  const [draftStatusFilter, setDraftStatusFilter] = useState("");
+  const [draftCementFilter, setDraftCementFilter] = useState("");
+  const [draftDateFrom, setDraftDateFrom] = useState("");
+  const [draftDateTo, setDraftDateTo] = useState("");
+  const [draftShowCompleted, setDraftShowCompleted] = useState(false);
 
   const showNotification = (message, type = "success") => {
     setNotification({ message, type });
@@ -432,16 +471,88 @@ export default function AnnouncementsList({
     setHistoryEntries([]);
   };
 
+  const statusOptions = [...new Set(announcements.map((a) => a.status))].sort(
+    (a, b) => (STATUS_ORDER[a] ?? 0) - (STATUS_ORDER[b] ?? 0),
+  );
+  const cementOptions = [
+    ...new Set(announcements.map((a) => a.vrsta_cementa).filter(Boolean)),
+  ].sort();
+
+  const activeFilterCount = [
+    statusFilter,
+    cementFilter,
+    dateFrom,
+    dateTo,
+    showCompleted ? "showCompleted" : "",
+  ].filter(Boolean).length;
+
+  const openFilterModal = () => {
+    setDraftStatusFilter(statusFilter);
+    setDraftCementFilter(cementFilter);
+    setDraftDateFrom(dateFrom);
+    setDraftDateTo(dateTo);
+    setDraftShowCompleted(showCompleted);
+    setFilterModalOpen(true);
+  };
+
+  const closeFilterModal = () => {
+    setFilterModalOpen(false);
+  };
+
+  const applyFilters = () => {
+    setStatusFilter(draftStatusFilter);
+    setCementFilter(draftCementFilter);
+    setDateFrom(draftDateFrom);
+    setDateTo(draftDateTo);
+    setShowCompleted(draftShowCompleted);
+    setCurrentPage(1);
+    setFilterModalOpen(false);
+  };
+
+  const resetFilters = () => {
+    setStatusFilter("");
+    setCementFilter("");
+    setDateFrom("");
+    setDateTo("");
+    setShowCompleted(false);
+    setDraftStatusFilter("");
+    setDraftCementFilter("");
+    setDraftDateFrom("");
+    setDraftDateTo("");
+    setDraftShowCompleted(false);
+    setCurrentPage(1);
+    setFilterModalOpen(false);
+  };
+
   const filteredAnnouncements = announcements.filter((item) => {
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return true;
-    return (
+    const matchesSearch =
+      !term ||
       item.firma?.toLowerCase().includes(term) ||
       item.vrsta_cementa?.toLowerCase().includes(term) ||
       item.ime_vozaca?.toLowerCase().includes(term) ||
       item.prezime_vozaca?.toLowerCase().includes(term) ||
       item.registarske_oznake?.toLowerCase().includes(term) ||
-      item.status?.toLowerCase().includes(term)
+      item.status?.toLowerCase().includes(term);
+
+    const matchesStatus = !statusFilter || item.status === statusFilter;
+    const matchesCement = !cementFilter || item.vrsta_cementa === cementFilter;
+    const matchesDateRange = isWithinDateRange(
+      item.created_at,
+      dateFrom,
+      dateTo,
+    );
+    // "Prikaži završene" se primjenjuje samo kad korisnik nije eksplicitno
+    // izabrao status "completed" u dropdownu - ako jeste, očito ih želi vidjeti.
+    const matchesCompletedVisibility =
+      showCompleted || statusFilter === "completed" || item.status !== "completed";
+
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      matchesCement &&
+      matchesDateRange &&
+      matchesCompletedVisibility
     );
   });
 
@@ -505,6 +616,33 @@ export default function AnnouncementsList({
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
             />
           </div>
+          <div className="relative inline-flex">
+            <button
+              type="button"
+              onClick={openFilterModal}
+              className={`whitespace-nowrap rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                activeFilterCount > 0
+                  ? "border-brand-red bg-red-50 text-brand-red"
+                  : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              🔎 Filtriraj
+            </button>
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  resetFilters();
+                }}
+                aria-label="Resetuj filtere"
+                title="Resetuj filtere"
+                className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand-red text-xs font-bold text-white shadow hover:bg-brand-red-dark"
+              >
+                ×
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-2 md:hidden">
             <select
               value={sortField}
@@ -546,7 +684,7 @@ export default function AnnouncementsList({
         <div className="text-sm text-gray-500">Nema podataka.</div>
       ) : filteredAnnouncements.length === 0 ? (
         <div className="text-sm text-gray-500">
-          Nema najava koje odgovaraju pretrazi.
+          Nema najava koje odgovaraju pretrazi/filterima.
         </div>
       ) : (
         <>
@@ -1105,6 +1243,143 @@ export default function AnnouncementsList({
                 ))}
               </ul>
             )}
+          </div>
+        </div>
+      )}
+
+      {filterModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/60 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="filter-modal-title"
+            className="w-full max-w-2xl rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-2xl shadow-black/10"
+          >
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h3
+                  id="filter-modal-title"
+                  className="text-lg font-semibold text-gray-900"
+                >
+                  Filtriraj najave
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Odaberi kriterije i klikni "Primijeni" da filtriraš tabelu.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeFilterModal}
+                className="rounded-full border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Zatvori
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Status
+                </label>
+                <select
+                  value={draftStatusFilter}
+                  onChange={(e) => setDraftStatusFilter(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+                >
+                  <option value="">Svi statusi</option>
+                  {statusOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Vrsta cementa
+                </label>
+                <select
+                  value={draftCementFilter}
+                  onChange={(e) => setDraftCementFilter(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+                >
+                  <option value="">Sve vrste</option>
+                  {cementOptions.map((cement) => (
+                    <option key={cement} value={cement}>
+                      {cement}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Kreirano od
+                </label>
+                <input
+                  type="date"
+                  value={draftDateFrom}
+                  onChange={(e) => setDraftDateFrom(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Kreirano do
+                </label>
+                <input
+                  type="date"
+                  value={draftDateTo}
+                  onChange={(e) => setDraftDateTo(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 sm:col-span-2">
+                <input
+                  id="show-completed-checkbox"
+                  type="checkbox"
+                  checked={draftShowCompleted}
+                  onChange={(e) => setDraftShowCompleted(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-brand-red focus:ring-2 focus:ring-red-100"
+                />
+                <label
+                  htmlFor="show-completed-checkbox"
+                  className="text-sm text-gray-700"
+                >
+                  Prikaži završene najave
+                </label>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-between">
+              <button
+                type="button"
+                onClick={resetFilters}
+                disabled={activeFilterCount === 0}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Resetuj filtere
+              </button>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={closeFilterModal}
+                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Odustani
+                </button>
+                <button
+                  type="button"
+                  onClick={applyFilters}
+                  className="rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark"
+                >
+                  Primijeni
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
