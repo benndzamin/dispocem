@@ -151,7 +151,9 @@ export default function AnnouncementForm({
           actorUserId: currentUser?.id,
         },
       })
-      .catch((err) => console.error("Slanje push notifikacije nije uspjelo:", err));
+      .catch((err) =>
+        console.error("Slanje push notifikacije nije uspjelo:", err),
+      );
   };
 
   return (
@@ -159,26 +161,6 @@ export default function AnnouncementForm({
       onSubmit={handleSubmit}
       className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 sm:p-6"
     >
-      <div className="flex flex-col gap-2 border-b border-gray-200 pb-3 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">
-          Nova najava otpreme
-        </h3>
-        {!isBuyer && (
-          <span
-            className={`text-xs px-2.5 py-1 rounded-full border font-medium select-none ${
-              effectiveBuyerProfile?.announcement_required
-                ? "bg-amber-50 text-amber-700 border-amber-200"
-                : "bg-emerald-50 text-emerald-700 border-emerald-200"
-            }`}
-          >
-            Najava obavezna:{" "}
-            {effectiveBuyerProfile?.announcement_required ? "DA" : "NE"}
-          </span>
-        )}
-      </div>
-
-      {isBuyer && <NoticeScheduleBanner />}
-
       <div className="grid gap-4 md:grid-cols-2">
         {!isBuyer && (
           <div className="relative">

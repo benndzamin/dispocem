@@ -3,15 +3,15 @@ import React from "react";
 const ROLE_DETAILS = {
   admin: {
     title: "Administracija",
-    desc: "Admin vidi sve najave, upravlja vrstama cementa i kontrolira kupce.",
+    desc: "Admin vidi sve najave, sve korisnike sistema, upravlja vrstama cementa i dozvolama.",
   },
   wb_supervisor: {
     title: "Supervizor vage",
-    desc: "Supervizor vidi sve najave, dodjeljuje dozvole kupcima i može dodavati kupce.",
+    desc: "Supervizor vidi sve najave, daje odobrenje za najave, dodaje, edituje i briše kupce, te upravlja dozvolama za najave kupaca.",
   },
   wb_operator: {
     title: "Operater vage",
-    desc: "Operator vidi sve najave i može ih označiti kao completed.",
+    desc: "Operater (Referent odpreme) vidi sve najave i može mijenjati njihov status.",
   },
   buyer: {
     title: "Portal kupca",
