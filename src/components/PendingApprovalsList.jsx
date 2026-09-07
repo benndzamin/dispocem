@@ -30,7 +30,10 @@ export default function PendingApprovalsList({ currentUser }) {
     setLoading(false);
 
     if (error) {
-      showNotification("Greška pri učitavanju najava: " + error.message, "error");
+      showNotification(
+        "Greška pri učitavanju najava: " + error.message,
+        "error",
+      );
       return;
     }
     setItems(data || []);
@@ -264,7 +267,9 @@ export default function PendingApprovalsList({ currentUser }) {
       </div>
 
       {loading ? (
-        <div className="py-6 text-center text-sm text-gray-500">Učitavanje...</div>
+        <div className="py-6 text-center text-sm text-gray-500">
+          Učitavanje...
+        </div>
       ) : items.length === 0 ? (
         <div className="py-6 text-center text-sm text-gray-500">
           Nema najava koje čekaju odobrenje.
@@ -305,14 +310,19 @@ export default function PendingApprovalsList({ currentUser }) {
                     >
                       {item.firma}
                     </td>
-                    <td className="max-w-[14rem] truncate px-3 py-3" title={item.vrsta_cementa}>
+                    <td
+                      className="max-w-[14rem] truncate px-3 py-3"
+                      title={item.vrsta_cementa}
+                    >
                       {item.vrsta_cementa}
                     </td>
                     <td className="whitespace-nowrap px-3 py-3">
                       {formatDate(item.datum_planiranja_odpreme)}
                     </td>
                     <td className="max-w-[12rem] truncate px-3 py-3">
-                      {[item.ime_vozaca, item.prezime_vozaca].filter(Boolean).join(" ") || "-"}
+                      {[item.ime_vozaca, item.prezime_vozaca]
+                        .filter(Boolean)
+                        .join(" ") || "-"}
                     </td>
                     <td className="whitespace-nowrap px-3 py-3">
                       {item.registarske_oznake || "-"}
@@ -332,7 +342,9 @@ export default function PendingApprovalsList({ currentUser }) {
                 className="w-full rounded-xl border border-gray-200 bg-white p-4 text-left hover:bg-amber-50"
               >
                 <div className="font-semibold text-gray-900">{item.firma}</div>
-                <div className="mt-1 text-sm text-gray-700">{item.vrsta_cementa}</div>
+                <div className="mt-1 text-sm text-gray-700">
+                  {item.vrsta_cementa}
+                </div>
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
                   <div>
                     <span className="text-gray-400">Planirano: </span>
@@ -340,7 +352,9 @@ export default function PendingApprovalsList({ currentUser }) {
                   </div>
                   <div>
                     <span className="text-gray-400">Vozač: </span>
-                    {[item.ime_vozaca, item.prezime_vozaca].filter(Boolean).join(" ") || "-"}
+                    {[item.ime_vozaca, item.prezime_vozaca]
+                      .filter(Boolean)
+                      .join(" ") || "-"}
                   </div>
                   <div>
                     <span className="text-gray-400">Reg: </span>
@@ -361,13 +375,18 @@ export default function PendingApprovalsList({ currentUser }) {
             aria-labelledby="approve-dialog-title"
             className="w-full max-w-lg rounded-3xl border border-gray-200 bg-white p-4 shadow-2xl shadow-black/10 sm:p-6"
           >
-            <h3 id="approve-dialog-title" className="text-lg font-semibold text-gray-900">
-              Potvrda odobrenja
+            <h3
+              id="approve-dialog-title"
+              className="text-lg font-semibold text-gray-900"
+            >
+              Odobrenje najave za utovar
             </h3>
             <p className="mt-3 text-gray-700">
               Jeste li sigurni da želite dozvoliti utovar za najavu —{" "}
-              <span className="font-semibold text-gray-900">{confirmTarget.firma}</span> (
-              {confirmTarget.vrsta_cementa})?
+              <span className="font-semibold text-gray-900">
+                {confirmTarget.firma}
+              </span>{" "}
+              ({confirmTarget.vrsta_cementa})?
             </p>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
