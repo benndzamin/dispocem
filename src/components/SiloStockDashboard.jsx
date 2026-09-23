@@ -222,7 +222,6 @@ const SILO_W = 130;
 const SILO_TOP = 44;
 const SILO_H = 250;
 const SILO_BOTTOM = SILO_TOP + SILO_H;
-const MERGE_Y = 372;
 const STEM_END_Y = 410;
 const TRUCK_Y = 414;
 const SCENE_H = 506;
@@ -462,10 +461,12 @@ function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
   let extra;
   // R4 (kamion daleko, dug spoj kod dna) vs R1/R2 (Y-spoj je sad gore kod
   // tap-tačke, pa kamion smije biti bliže silosima - kraći canvas).
-  let mergeYStart = MERGE_Y;
+  let mergeYStart;
   let stemEndY = STEM_END_Y;
   let truckY = TRUCK_Y;
   let canvasH = SCENE_H;
+  let siloLeftCx = LEFT_CX;
+  let siloRightCx = RIGHT_CX;
 
   if (mechanism === "tap") {
     // R1/R2: cijev se fizički spaja na visini praga (npr. 12m odozgo), ne
@@ -491,19 +492,28 @@ function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
     );
   } else {
     // R4: cijev direktno s dna konusa, bez praga. Konusni silosi su manji
-    // (siloDims), pa se cijev spaja na njihovo stvarno (niže) dno.
+    // (siloDims), pa se cijev spaja na njihovo stvarno (niže) dno. S5/S6 su
+    // sastavljeni bliže jedan drugom, a dijagonala je kraća ali ISTOG nagiba
+    // (ugla) kao prije - samo se skraćuje razmjerno manjoj vodoravnoj
+    // udaljenosti do spoja.
+    siloLeftCx = 150;
+    siloRightCx = 310;
     const leftBottom = siloDims(leftSilo).bottom;
     const rightBottom = siloDims(rightSilo).bottom;
-    leftPipeD = `M ${LEFT_CX} ${leftBottom} L ${LEFT_CX} ${leftBottom + 36} L ${MERGE_X} ${MERGE_Y}`;
-    rightPipeD = `M ${RIGHT_CX} ${rightBottom} L ${RIGHT_CX} ${rightBottom + 36} L ${MERGE_X} ${MERGE_Y}`;
+    const stubY = leftBottom + 36;
+    const angleRatio = 87 / 145; // isti nagib kao originalna dijagonala
+    const horizontal = MERGE_X - siloLeftCx;
+    mergeYStart = stubY + horizontal * angleRatio;
+    leftPipeD = `M ${siloLeftCx} ${leftBottom} L ${siloLeftCx} ${stubY} L ${MERGE_X} ${mergeYStart}`;
+    rightPipeD = `M ${siloRightCx} ${rightBottom} L ${siloRightCx} ${stubY} L ${MERGE_X} ${mergeYStart}`;
   }
 
   return (
     <div>
       <div className="overflow-x-auto">
         <svg width={SCENE_W} height={canvasH} viewBox={`0 0 ${SCENE_W} ${canvasH}`} className="mx-auto">
-          <SiloVisual silo={leftSilo} cx={LEFT_CX} stats={leftStats} ok={leftOk} hasData={leftHasData} />
-          <SiloVisual silo={rightSilo} cx={RIGHT_CX} stats={rightStats} ok={rightOk} hasData={rightHasData} />
+          <SiloVisual silo={leftSilo} cx={siloLeftCx} stats={leftStats} ok={leftOk} hasData={leftHasData} />
+          <SiloVisual silo={rightSilo} cx={siloRightCx} stats={rightStats} ok={rightOk} hasData={rightHasData} />
 
           <path d={leftPipeD} stroke={leftColor} strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           <path d={rightPipeD} stroke={rightColor} strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
