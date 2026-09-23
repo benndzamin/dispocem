@@ -227,6 +227,12 @@ const STEM_END_Y = 410;
 const TRUCK_Y = 414;
 const SCENE_H = 506;
 
+// R1/R2 (tap): pošto se Y-spoj sad dešava odmah kod tap-tačke, kamion se
+// vozi bliže silosima nego kod R4 (kraći, kompaktniji canvas).
+const TAP_TRUCK_Y = 340;
+const TAP_STEM_END_Y = 336;
+const TAP_SCENE_H = 432;
+
 const LEFT_X = 20;
 const RIGHT_X = SCENE_W - 20 - SILO_W;
 const LEFT_CX = LEFT_X + SILO_W / 2;
@@ -454,18 +460,26 @@ function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
   let leftPipeD;
   let rightPipeD;
   let extra;
+  // R4 (kamion daleko, dug spoj kod dna) vs R1/R2 (Y-spoj je sad gore kod
+  // tap-tačke, pa kamion smije biti bliže silosima - kraći canvas).
+  let mergeYStart = MERGE_Y;
+  let stemEndY = STEM_END_Y;
+  let truckY = TRUCK_Y;
+  let canvasH = SCENE_H;
 
   if (mechanism === "tap") {
     // R1/R2: cijev se fizički spaja na visini praga (npr. 12m odozgo), ne
     // na dnu silosa - baš kako je korisnik naglasio.
     const ratio = Number(rinfuza.threshold_empty_m) / Number(leftSilo.total_height_m);
     const tapY = SILO_TOP + ratio * SILO_H;
-    // Plići Y-spoj odmah kod ulaska u silos (tapY), pa tek onda duga
-    // uspravna cijev dolje do zajedničkog spoja (MERGE_Y) - obrnuto od
-    // prije, gdje je spoj bio dolje pri dnu.
-    const tapMergeY = tapY + 36;
-    leftPipeD = `M ${LEFT_X + SILO_W} ${tapY} L ${LEFT_X + SILO_W + 22} ${tapY} L ${MERGE_X} ${tapMergeY}`;
-    rightPipeD = `M ${RIGHT_X} ${tapY} L ${RIGHT_X - 22} ${tapY} L ${MERGE_X} ${tapMergeY}`;
+    // Plići Y-spoj odmah kod ulaska u silos (tapY), pa tek onda kraća
+    // uspravna cijev do (bližeg) kamiona.
+    mergeYStart = tapY + 36;
+    stemEndY = TAP_STEM_END_Y;
+    truckY = TAP_TRUCK_Y;
+    canvasH = TAP_SCENE_H;
+    leftPipeD = `M ${LEFT_X + SILO_W} ${tapY} L ${LEFT_X + SILO_W + 22} ${tapY} L ${MERGE_X} ${mergeYStart}`;
+    rightPipeD = `M ${RIGHT_X} ${tapY} L ${RIGHT_X - 22} ${tapY} L ${MERGE_X} ${mergeYStart}`;
     extra = (
       <g>
         <circle cx={LEFT_X + SILO_W} cy={tapY} r="4.5" fill={leftColor} stroke="#374151" strokeWidth="1" />
@@ -473,7 +487,6 @@ function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
         <text x={MERGE_X} y={tapY - 10} textAnchor="middle" fontSize="9" fill="#9ca3af">
           prag {fmt1(Number(rinfuza.threshold_empty_m))} m odozgo
         </text>
-        <path d={`M ${MERGE_X} ${tapMergeY} L ${MERGE_X} ${MERGE_Y}`} stroke={stemColor} strokeWidth="7" fill="none" strokeLinecap="round" />
       </g>
     );
   } else {
@@ -488,20 +501,20 @@ function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
   return (
     <div>
       <div className="overflow-x-auto">
-        <svg width={SCENE_W} height={SCENE_H} viewBox={`0 0 ${SCENE_W} ${SCENE_H}`} className="mx-auto">
+        <svg width={SCENE_W} height={canvasH} viewBox={`0 0 ${SCENE_W} ${canvasH}`} className="mx-auto">
           <SiloVisual silo={leftSilo} cx={LEFT_CX} stats={leftStats} ok={leftOk} hasData={leftHasData} />
           <SiloVisual silo={rightSilo} cx={RIGHT_CX} stats={rightStats} ok={rightOk} hasData={rightHasData} />
 
           <path d={leftPipeD} stroke={leftColor} strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           <path d={rightPipeD} stroke={rightColor} strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          <path d={`M ${MERGE_X} ${MERGE_Y} L ${MERGE_X} ${STEM_END_Y}`} stroke={stemColor} strokeWidth="7" fill="none" strokeLinecap="round" />
+          <path d={`M ${MERGE_X} ${mergeYStart} L ${MERGE_X} ${stemEndY}`} stroke={stemColor} strokeWidth="7" fill="none" strokeLinecap="round" />
           {extra}
 
-          <TankerTruck x={MERGE_X} y={TRUCK_Y} />
-          <text x={MERGE_X} y={TRUCK_Y - 8} textAnchor="middle" fontSize="14" fontWeight="800" fill="#111827">
+          <TankerTruck x={MERGE_X} y={truckY} />
+          <text x={MERGE_X} y={truckY - 8} textAnchor="middle" fontSize="14" fontWeight="800" fill="#111827">
             {rinfuza.label}
           </text>
-          <text x={MERGE_X} y={SCENE_H - 8} textAnchor="middle" fontSize="12" fontWeight="700" fill={status.ok ? "#059669" : "#dc2626"}>
+          <text x={MERGE_X} y={canvasH - 8} textAnchor="middle" fontSize="12" fontWeight="700" fill={status.ok ? "#059669" : "#dc2626"}>
             {status.ok ? "✓ AKTIVNA" : "✗ NEDOVOLJNO"}
           </text>
         </svg>
