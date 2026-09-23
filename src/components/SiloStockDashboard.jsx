@@ -460,11 +460,12 @@ function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
     // na dnu silosa - baš kako je korisnik naglasio.
     const ratio = Number(rinfuza.threshold_empty_m) / Number(leftSilo.total_height_m);
     const tapY = SILO_TOP + ratio * SILO_H;
-    // Duga uspravna cijev od tap-tačke, pa tek na kraju kratak/plići Y-spoj
-    // (iste "dubine" kao kod R4) - umjesto jedne duge, strme dijagonale.
-    const funnelY = MERGE_Y - 36;
-    leftPipeD = `M ${LEFT_X + SILO_W} ${tapY} L ${LEFT_X + SILO_W + 22} ${tapY} L ${LEFT_X + SILO_W + 22} ${funnelY} L ${MERGE_X} ${MERGE_Y}`;
-    rightPipeD = `M ${RIGHT_X} ${tapY} L ${RIGHT_X - 22} ${tapY} L ${RIGHT_X - 22} ${funnelY} L ${MERGE_X} ${MERGE_Y}`;
+    // Plići Y-spoj odmah kod ulaska u silos (tapY), pa tek onda duga
+    // uspravna cijev dolje do zajedničkog spoja (MERGE_Y) - obrnuto od
+    // prije, gdje je spoj bio dolje pri dnu.
+    const tapMergeY = tapY + 36;
+    leftPipeD = `M ${LEFT_X + SILO_W} ${tapY} L ${LEFT_X + SILO_W + 22} ${tapY} L ${MERGE_X} ${tapMergeY}`;
+    rightPipeD = `M ${RIGHT_X} ${tapY} L ${RIGHT_X - 22} ${tapY} L ${MERGE_X} ${tapMergeY}`;
     extra = (
       <g>
         <circle cx={LEFT_X + SILO_W} cy={tapY} r="4.5" fill={leftColor} stroke="#374151" strokeWidth="1" />
@@ -472,6 +473,7 @@ function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
         <text x={MERGE_X} y={tapY - 10} textAnchor="middle" fontSize="9" fill="#9ca3af">
           prag {fmt1(Number(rinfuza.threshold_empty_m))} m odozgo
         </text>
+        <path d={`M ${MERGE_X} ${tapMergeY} L ${MERGE_X} ${MERGE_Y}`} stroke={stemColor} strokeWidth="7" fill="none" strokeLinecap="round" />
       </g>
     );
   } else {
