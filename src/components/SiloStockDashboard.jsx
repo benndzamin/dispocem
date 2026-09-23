@@ -353,13 +353,21 @@ const VALVE_COLOR = "#c0392b";
 function HopperScene({ rinfuza, leftSilo, rightSilo, leftStats, rightStats, leftHasData, rightHasData, leftOk, rightOk, leftColor, rightColor, stemColor, status }) {
   const leftDropD = `M ${HOPPER_SILO_LEFT_CX} ${SILO_BOTTOM} L ${HOPPER_SILO_LEFT_CX} ${HOPPER_Y_BOTTOM}`;
   const rightDropD = `M ${HOPPER_SILO_RIGHT_CX} ${SILO_BOTTOM} L ${HOPPER_SILO_RIGHT_CX} ${HOPPER_Y_BOTTOM} L ${HOPPER_SILO_LEFT_CX} ${HOPPER_Y_BOTTOM}`;
-  const mainD = [
-    `M ${HOPPER_SILO_LEFT_CX} ${HOPPER_Y_BOTTOM} L ${HOPPER_RISER_X} ${HOPPER_Y_BOTTOM} L ${HOPPER_RISER_X} ${HOPPER_HEADER_Y} L ${HOPPER1_X} ${HOPPER_HEADER_Y} L ${HOPPER1_X} ${HOPPER_TOP_Y}`,
-    `M ${HOPPER_RISER_X} ${HOPPER_HEADER_Y} L ${HOPPER2_X} ${HOPPER_HEADER_Y} L ${HOPPER2_X} ${HOPPER_TOP_Y}`,
+  // Zajednički dio (od spoja silosa do prve grane ka hopperu 1) - oba
+  // izvora su se već spojila, boja je po ukupnom statusu rinfuze.
+  const sharedD = `M ${HOPPER_SILO_LEFT_CX} ${HOPPER_Y_BOTTOM} L ${HOPPER_RISER_X} ${HOPPER_Y_BOTTOM} L ${HOPPER_RISER_X} ${HOPPER_HEADER_Y} L ${HOPPER1_X} ${HOPPER_HEADER_Y}`;
+  // Hopper 1 "pripada" lijevom silosu, hopper 2 desnom - isti princip kao
+  // dio korita do prve račve kod silosa: mali dio do sljedeće račve
+  // (poslije hoppera, do spoja ka kamionu) prati status tog silosa.
+  const leftBranchD = [
+    `M ${HOPPER1_X} ${HOPPER_HEADER_Y} L ${HOPPER1_X} ${HOPPER_TOP_Y}`,
     `M ${HOPPER1_X} ${HOPPER_BOTTOM_Y} L ${HOPPER_MERGE_X} ${HOPPER_MERGE_Y}`,
-    `M ${HOPPER2_X} ${HOPPER_BOTTOM_Y} L ${HOPPER_MERGE_X} ${HOPPER_MERGE_Y}`,
-    `M ${HOPPER_MERGE_X} ${HOPPER_MERGE_Y} L ${HOPPER_MERGE_X} ${HOPPER_STEM_END_Y}`,
   ].join(" ");
+  const rightBranchD = [
+    `M ${HOPPER1_X} ${HOPPER_HEADER_Y} L ${HOPPER2_X} ${HOPPER_HEADER_Y} L ${HOPPER2_X} ${HOPPER_TOP_Y}`,
+    `M ${HOPPER2_X} ${HOPPER_BOTTOM_Y} L ${HOPPER_MERGE_X} ${HOPPER_MERGE_Y}`,
+  ].join(" ");
+  const stemD = `M ${HOPPER_MERGE_X} ${HOPPER_MERGE_Y} L ${HOPPER_MERGE_X} ${HOPPER_STEM_END_Y}`;
 
   return (
     <div>
@@ -368,7 +376,10 @@ function HopperScene({ rinfuza, leftSilo, rightSilo, leftStats, rightStats, left
           <SiloVisual silo={leftSilo} cx={HOPPER_SILO_LEFT_CX} stats={leftStats} ok={leftOk} hasData={leftHasData} />
           <SiloVisual silo={rightSilo} cx={HOPPER_SILO_RIGHT_CX} stats={rightStats} ok={rightOk} hasData={rightHasData} />
 
-          <path d={mainD} stroke={stemColor} strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={sharedD} stroke={stemColor} strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={leftBranchD} stroke={leftColor} strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={rightBranchD} stroke={rightColor} strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={stemD} stroke={stemColor} strokeWidth="7" fill="none" strokeLinecap="round" />
           <path d={leftDropD} stroke={leftColor} strokeWidth="7" fill="none" strokeLinecap="round" />
           <path d={rightDropD} stroke={rightColor} strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           <circle cx={HOPPER_SILO_LEFT_CX} cy={SILO_BOTTOM} r="5" fill={VALVE_COLOR} stroke="#7f1d1d" strokeWidth="1" />
