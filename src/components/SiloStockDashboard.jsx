@@ -353,18 +353,23 @@ const VALVE_COLOR = "#c0392b";
 function HopperScene({ rinfuza, leftSilo, rightSilo, leftStats, rightStats, leftHasData, rightHasData, leftOk, rightOk, leftColor, rightColor, stemColor, status }) {
   const leftDropD = `M ${HOPPER_SILO_LEFT_CX} ${SILO_BOTTOM} L ${HOPPER_SILO_LEFT_CX} ${HOPPER_Y_BOTTOM}`;
   const rightDropD = `M ${HOPPER_SILO_RIGHT_CX} ${SILO_BOTTOM} L ${HOPPER_SILO_RIGHT_CX} ${HOPPER_Y_BOTTOM} L ${HOPPER_SILO_LEFT_CX} ${HOPPER_Y_BOTTOM}`;
-  // Zajednički dio (od spoja silosa do prve grane ka hopperu 1) - oba
-  // izvora su se već spojila, boja je po ukupnom statusu rinfuze.
+  // Zajednički dio: od spoja silosa, kroz dizalicu, cijelim gornjim vodom
+  // (do iznad OBA hoppera) - oba izvora su se već spojila, boja je po
+  // ukupnom statusu rinfuze. Header pokriva x od riser-a do hopper1 (koji
+  // je krajnja tačka), pa "prolazi kroz" i tačku iznad hopper2 usput -
+  // zato grane ispod ne smiju ponovo crtati taj vodoravni dio (to je
+  // ranije stvaralo lažnu vodoravnu liniju u boji pogrešnog silosa).
   const sharedD = `M ${HOPPER_SILO_LEFT_CX} ${HOPPER_Y_BOTTOM} L ${HOPPER_RISER_X} ${HOPPER_Y_BOTTOM} L ${HOPPER_RISER_X} ${HOPPER_HEADER_Y} L ${HOPPER1_X} ${HOPPER_HEADER_Y}`;
-  // Hopper 1 "pripada" lijevom silosu, hopper 2 desnom - isti princip kao
-  // dio korita do prve račve kod silosa: mali dio do sljedeće račve
-  // (poslije hoppera, do spoja ka kamionu) prati status tog silosa.
+  // Hopper 1 "pripada" lijevom silosu, hopper 2 desnom - samo kratak
+  // uspravan spoj iznad svakog hoppera je obojen po statusu tog silosa
+  // (plus dio od hoppera do spoja ka kamionu), bez ikakvog vodoravnog
+  // segmenta.
   const leftBranchD = [
     `M ${HOPPER1_X} ${HOPPER_HEADER_Y} L ${HOPPER1_X} ${HOPPER_TOP_Y}`,
     `M ${HOPPER1_X} ${HOPPER_BOTTOM_Y} L ${HOPPER_MERGE_X} ${HOPPER_MERGE_Y}`,
   ].join(" ");
   const rightBranchD = [
-    `M ${HOPPER1_X} ${HOPPER_HEADER_Y} L ${HOPPER2_X} ${HOPPER_HEADER_Y} L ${HOPPER2_X} ${HOPPER_TOP_Y}`,
+    `M ${HOPPER2_X} ${HOPPER_HEADER_Y} L ${HOPPER2_X} ${HOPPER_TOP_Y}`,
     `M ${HOPPER2_X} ${HOPPER_BOTTOM_Y} L ${HOPPER_MERGE_X} ${HOPPER_MERGE_Y}`,
   ].join(" ");
   const stemD = `M ${HOPPER_MERGE_X} ${HOPPER_MERGE_Y} L ${HOPPER_MERGE_X} ${HOPPER_STEM_END_Y}`;
