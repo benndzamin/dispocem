@@ -460,8 +460,11 @@ function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
     // na dnu silosa - baš kako je korisnik naglasio.
     const ratio = Number(rinfuza.threshold_empty_m) / Number(leftSilo.total_height_m);
     const tapY = SILO_TOP + ratio * SILO_H;
-    leftPipeD = `M ${LEFT_X + SILO_W} ${tapY} L ${LEFT_X + SILO_W + 22} ${tapY} L ${MERGE_X} ${MERGE_Y}`;
-    rightPipeD = `M ${RIGHT_X} ${tapY} L ${RIGHT_X - 22} ${tapY} L ${MERGE_X} ${MERGE_Y}`;
+    // Duga uspravna cijev od tap-tačke, pa tek na kraju kratak/plići Y-spoj
+    // (iste "dubine" kao kod R4) - umjesto jedne duge, strme dijagonale.
+    const funnelY = MERGE_Y - 36;
+    leftPipeD = `M ${LEFT_X + SILO_W} ${tapY} L ${LEFT_X + SILO_W + 22} ${tapY} L ${LEFT_X + SILO_W + 22} ${funnelY} L ${MERGE_X} ${MERGE_Y}`;
+    rightPipeD = `M ${RIGHT_X} ${tapY} L ${RIGHT_X - 22} ${tapY} L ${RIGHT_X - 22} ${funnelY} L ${MERGE_X} ${MERGE_Y}`;
     extra = (
       <g>
         <circle cx={LEFT_X + SILO_W} cy={tapY} r="4.5" fill={leftColor} stroke="#374151" strokeWidth="1" />
