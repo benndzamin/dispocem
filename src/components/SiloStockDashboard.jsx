@@ -45,6 +45,13 @@ function computeRinfuzaStatus(rinfuza, sourceSilos, statsBySiloId) {
   return { ok: contributing.length > 0, contributingIds: contributing.map((s) => s.id) };
 }
 
+const RINFUZA_SOURCE_CODES = {
+  R1: ["S1", "S2"],
+  R2: ["S3", "S4"],
+  R3: ["S3", "S4"],
+  R4: ["S5", "S6"],
+};
+
 const RINFUZA_MECHANISM = {
   R1: "Direktna gravitacija · prag 12 m praznine",
   R2: "Direktna gravitacija · prag 12 m praznine",
@@ -200,6 +207,229 @@ function SiloCard({ silo, stats, lastReading, canEdit, onSubmit, saving }) {
   );
 }
 
+const RINFUZA_VISUAL_MECHANISM = {
+  R1: "tap",
+  R2: "tap",
+  R3: "hopper",
+  R4: "cone",
+};
+
+// --- Ilustrovana scena (cijevi + kamion-cisterna) za admin/supervizor tab --
+// Jedan SVG canvas po rinfuzi, geometrija fiksna (nije skalirana po metru -
+// cilj je vizuelna čitljivost mehanizma, ne razmjera).
+const SCENE_W = 460;
+const SILO_W = 130;
+const SILO_TOP = 44;
+const SILO_H = 250;
+const SILO_BOTTOM = SILO_TOP + SILO_H;
+const MERGE_Y = 372;
+const STEM_END_Y = 410;
+const TRUCK_Y = 414;
+const SCENE_H = 506;
+
+const LEFT_X = 20;
+const RIGHT_X = SCENE_W - 20 - SILO_W;
+const LEFT_CX = LEFT_X + SILO_W / 2;
+const RIGHT_CX = RIGHT_X + SILO_W / 2;
+const MERGE_X = SCENE_W / 2;
+
+const OK_COLOR = "#22c55e";
+const BAD_COLOR = "#ef4444";
+const NEUTRAL_COLOR = "#9ca3af";
+
+function siloBodyPath(conical) {
+  if (conical) {
+    const cylH = SILO_H * (13 / 18);
+    const x1 = (SILO_W - 24) / 2;
+    const x2 = x1 + 24;
+    return `M0,0 L${SILO_W},0 L${SILO_W},${cylH} L${x2},${SILO_H} L${x1},${SILO_H} L0,${cylH} Z`;
+  }
+  return `M0,0 L${SILO_W},0 L${SILO_W},${SILO_H} L0,${SILO_H} Z`;
+}
+
+function TankerTruck({ x, y }) {
+  const w = 150;
+  const h = 66;
+  return (
+    <g transform={`translate(${x - w / 2}, ${y})`}>
+      <rect x="0" y={h - 8} width={w} height="6" rx="2" fill="#8b8f93" />
+      <rect x="38" y="8" width="100" height="34" rx="17" fill="#e8c94a" stroke="#96811f" strokeWidth="1.5" />
+      <rect x="46" y="12" width="84" height="4" rx="2" fill="#fff" opacity="0.5" />
+      <rect x="4" y="6" width="34" height="30" rx="4" fill="#3d4a5c" />
+      <rect x="8" y="10" width="24" height="12" rx="2" fill="#bcdbe6" />
+      <circle cx="20" cy={h - 6} r="9" fill="#222" />
+      <circle cx="60" cy={h - 6} r="9" fill="#222" />
+      <circle cx="118" cy={h - 6} r="9" fill="#222" />
+    </g>
+  );
+}
+
+function SiloVisual({ silo, cx, stats, ok, hasData }) {
+  const conical = !!silo.conical_height_m;
+  const pct = stats?.pct ?? 0;
+  const fillPx = pct * SILO_H;
+  const path = siloBodyPath(conical);
+  const clipId = `scene-clip-${silo.code}`;
+  const gradId = `scene-grad-${silo.code}`;
+  const statusColor = !hasData ? NEUTRAL_COLOR : ok ? OK_COLOR : BAD_COLOR;
+  const x = cx - SILO_W / 2;
+
+  return (
+    <g transform={`translate(${x}, ${SILO_TOP})`}>
+      <rect x={SILO_W / 2 - 34} y="-38" width="68" height="20" rx="4" fill="#eef0f1" stroke="#9ca3af" />
+      <text x={SILO_W / 2} y="-24" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="11" fontWeight="700" fill="#374151">
+        {stats ? `${fmt1(stats.avgEmpty)} m` : "0.0 m"}
+      </text>
+      <rect x={SILO_W / 2 - 10} y="-14" width="20" height="7" rx="2" fill="#4b5563" />
+
+      <defs>
+        <linearGradient id={gradId} x1="0" x2="1">
+          <stop offset="0%" stopColor="#8c9195" />
+          <stop offset="35%" stopColor="#c7cbcf" />
+          <stop offset="50%" stopColor="#e9ebec" />
+          <stop offset="65%" stopColor="#c7cbcf" />
+          <stop offset="100%" stopColor="#8c9195" />
+        </linearGradient>
+        <clipPath id={clipId}>
+          <path d={path} />
+        </clipPath>
+      </defs>
+      <path d={path} fill={`url(#${gradId})`} stroke="#6b7280" strokeWidth="1.5" />
+      {hasData && (
+        <rect x="0" y={SILO_H - fillPx} width={SILO_W} height={fillPx} fill={statusColor} opacity="0.55" clipPath={`url(#${clipId})`} />
+      )}
+      <text x={SILO_W / 2} y="24" textAnchor="middle" fontSize="17" fontWeight="800" fill="#fff">
+        {silo.label}
+      </text>
+      <text x={SILO_W / 2} y="54" textAnchor="middle" fontSize="22" fontWeight="900" fill={statusColor}>
+        {hasData ? `${Math.round(pct * 100)}%` : "—"}
+      </text>
+
+      <rect x={SILO_W / 2 - 34} y={SILO_H + 6} width="68" height="20" rx="4" fill="#eef0f1" stroke="#9ca3af" />
+      <text x={SILO_W / 2} y={SILO_H + 20} textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="11" fontWeight="700" fill="#374151">
+        {stats ? `${fmt1(stats.tons)} t` : "— t"}
+      </text>
+    </g>
+  );
+}
+
+function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
+  if (!leftSilo || !rightSilo) return null;
+  const mechanism = RINFUZA_VISUAL_MECHANISM[rinfuza.code];
+  const status = computeRinfuzaStatus(rinfuza, [leftSilo, rightSilo], statsBySiloId);
+  const leftStats = statsBySiloId[leftSilo.id];
+  const rightStats = statsBySiloId[rightSilo.id];
+  const leftHasData = !!leftStats;
+  const rightHasData = !!rightStats;
+  const leftOk = status.contributingIds.includes(leftSilo.id);
+  const rightOk = status.contributingIds.includes(rightSilo.id);
+  const leftColor = !leftHasData ? NEUTRAL_COLOR : leftOk ? OK_COLOR : BAD_COLOR;
+  const rightColor = !rightHasData ? NEUTRAL_COLOR : rightOk ? OK_COLOR : BAD_COLOR;
+  const stemColor = !leftHasData && !rightHasData ? NEUTRAL_COLOR : status.ok ? OK_COLOR : BAD_COLOR;
+
+  let leftPipeD;
+  let rightPipeD;
+  let extra = null;
+
+  if (mechanism === "tap") {
+    // R1/R2: cijev se fizički spaja na visini praga (npr. 12m odozgo), ne
+    // na dnu silosa - baš kako je korisnik naglasio.
+    const ratio = Number(rinfuza.threshold_empty_m) / Number(leftSilo.total_height_m);
+    const tapY = SILO_TOP + ratio * SILO_H;
+    leftPipeD = `M ${LEFT_X + SILO_W} ${tapY} L ${LEFT_X + SILO_W + 22} ${tapY} L ${MERGE_X} ${MERGE_Y}`;
+    rightPipeD = `M ${RIGHT_X} ${tapY} L ${RIGHT_X - 22} ${tapY} L ${MERGE_X} ${MERGE_Y}`;
+    extra = (
+      <g>
+        <circle cx={LEFT_X + SILO_W} cy={tapY} r="4.5" fill={leftColor} stroke="#374151" strokeWidth="1" />
+        <circle cx={RIGHT_X} cy={tapY} r="4.5" fill={rightColor} stroke="#374151" strokeWidth="1" />
+        <text x={MERGE_X} y={tapY - 10} textAnchor="middle" fontSize="9" fill="#9ca3af">
+          prag {fmt1(Number(rinfuza.threshold_empty_m))} m odozgo
+        </text>
+      </g>
+    );
+  } else if (mechanism === "cone") {
+    // R4: cijev direktno s dna konusa, bez praga.
+    leftPipeD = `M ${LEFT_CX} ${SILO_BOTTOM} L ${LEFT_CX} ${SILO_BOTTOM + 36} L ${MERGE_X} ${MERGE_Y}`;
+    rightPipeD = `M ${RIGHT_CX} ${SILO_BOTTOM} L ${RIGHT_CX} ${SILO_BOTTOM + 36} L ${MERGE_X} ${MERGE_Y}`;
+  } else {
+    // R3: diže se u male silose (hoppere) iznad cisterne, pa slobodni pad.
+    const hopperTopY = SILO_TOP + 10;
+    const hopperBottomY = SILO_TOP + 50;
+    const hopper1X = MERGE_X - 35;
+    const hopper2X = MERGE_X + 35;
+    leftPipeD = `M ${LEFT_X + SILO_W} ${SILO_TOP + 20} L ${hopper1X} ${SILO_TOP + 20} L ${hopper1X} ${hopperTopY}`;
+    rightPipeD = `M ${RIGHT_X} ${SILO_TOP + 20} L ${hopper2X} ${SILO_TOP + 20} L ${hopper2X} ${hopperTopY}`;
+    extra = (
+      <g>
+        <polygon
+          points={`${hopper1X - 16},${hopperTopY} ${hopper1X + 16},${hopperTopY} ${hopper1X + 8},${hopperBottomY} ${hopper1X - 8},${hopperBottomY}`}
+          fill="#c7cbcf"
+          stroke="#6b7280"
+          strokeWidth="1.2"
+        />
+        <polygon
+          points={`${hopper2X - 16},${hopperTopY} ${hopper2X + 16},${hopperTopY} ${hopper2X + 8},${hopperBottomY} ${hopper2X - 8},${hopperBottomY}`}
+          fill="#c7cbcf"
+          stroke="#6b7280"
+          strokeWidth="1.2"
+        />
+        <path d={`M ${hopper1X} ${hopperBottomY} L ${MERGE_X} ${MERGE_Y}`} stroke={leftColor} strokeWidth="7" fill="none" strokeLinecap="round" />
+        <path d={`M ${hopper2X} ${hopperBottomY} L ${MERGE_X} ${MERGE_Y}`} stroke={rightColor} strokeWidth="7" fill="none" strokeLinecap="round" />
+      </g>
+    );
+  }
+
+  return (
+    <div>
+      <div className="overflow-x-auto">
+        <svg width={SCENE_W} height={SCENE_H} viewBox={`0 0 ${SCENE_W} ${SCENE_H}`} className="mx-auto">
+          <SiloVisual silo={leftSilo} cx={LEFT_CX} stats={leftStats} ok={leftOk} hasData={leftHasData} />
+          <SiloVisual silo={rightSilo} cx={RIGHT_CX} stats={rightStats} ok={rightOk} hasData={rightHasData} />
+
+          <path d={leftPipeD} stroke={leftColor} strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={rightPipeD} stroke={rightColor} strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={`M ${MERGE_X} ${MERGE_Y} L ${MERGE_X} ${STEM_END_Y}`} stroke={stemColor} strokeWidth="7" fill="none" strokeLinecap="round" />
+          {extra}
+
+          <TankerTruck x={MERGE_X} y={TRUCK_Y} />
+          <text x={MERGE_X} y={TRUCK_Y - 8} textAnchor="middle" fontSize="14" fontWeight="800" fill="#111827">
+            {rinfuza.label}
+          </text>
+          <text x={MERGE_X} y={SCENE_H - 8} textAnchor="middle" fontSize="12" fontWeight="700" fill={status.ok ? "#059669" : "#dc2626"}>
+            {status.ok ? "✓ AKTIVNA" : "✗ NEDOVOLJNO"}
+          </text>
+        </svg>
+      </div>
+      <p className="mt-1 text-center text-[11px] text-gray-400">{RINFUZA_MECHANISM[rinfuza.code]}</p>
+    </div>
+  );
+}
+
+function AllSilosRow({ silos, statsBySiloId, readingsBySiloId, canEdit, onSubmit, savingCode }) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:p-6">
+      <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        Svi silosi
+      </div>
+      <div className="flex flex-wrap justify-center gap-3">
+        {silos.map((silo) => (
+          <SiloCard
+            key={silo.id}
+            silo={silo}
+            stats={statsBySiloId[silo.id]}
+            lastReading={readingsBySiloId[silo.id]}
+            canEdit={canEdit}
+            onSubmit={onSubmit}
+            saving={savingCode === silo.code}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Kompaktna, ne-ilustrovana kartica - koristi je samo mill_operator ekran
+// (RinfuzaRow), gdje je bitna brzina pregleda, ne vizuelni mehanizam.
 function RinfuzaCard({ rinfuza, sourceSilos, status }) {
   return (
     <div
@@ -238,38 +468,26 @@ function RinfuzaCard({ rinfuza, sourceSilos, status }) {
   );
 }
 
-function Group({ title, siloCodes, rinfuzaCodes, silosByCode, rinfuzeByCode, statsBySiloId, readingsBySiloId, canEdit, onSubmit, savingCode }) {
-  const silos = siloCodes.map((c) => silosByCode[c]).filter(Boolean);
-  const rinfuze = rinfuzaCodes.map((c) => rinfuzeByCode[c]).filter(Boolean);
-
+function RinfuzaRow({ rinfuzeList, silosByCode, statsBySiloId }) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:p-6">
       <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-        {title}
+        Status rinfuza
       </div>
-      <div className="flex flex-wrap justify-center gap-4">
-        {silos.map((silo) => (
-          <SiloCard
-            key={silo.id}
-            silo={silo}
-            stats={statsBySiloId[silo.id]}
-            lastReading={readingsBySiloId[silo.id]}
-            canEdit={canEdit}
-            onSubmit={onSubmit}
-            saving={savingCode === silo.code}
-          />
-        ))}
-      </div>
-      <div className="my-3 text-center text-xs text-gray-400">↓ napaja ↓</div>
       <div className="flex flex-wrap justify-center gap-3">
-        {rinfuze.map((rinfuza) => (
-          <RinfuzaCard
-            key={rinfuza.id}
-            rinfuza={rinfuza}
-            sourceSilos={silos}
-            status={computeRinfuzaStatus(rinfuza, silos, statsBySiloId)}
-          />
-        ))}
+        {rinfuzeList.map((rinfuza) => {
+          const sourceSilos = (RINFUZA_SOURCE_CODES[rinfuza.code] || [])
+            .map((c) => silosByCode[c])
+            .filter(Boolean);
+          return (
+            <RinfuzaCard
+              key={rinfuza.id}
+              rinfuza={rinfuza}
+              sourceSilos={sourceSilos}
+              status={computeRinfuzaStatus(rinfuza, sourceSilos, statsBySiloId)}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -314,7 +532,6 @@ export default function SiloStockDashboard({ user, canEdit = false, hideTopBorde
   }, []);
 
   const silosByCode = Object.fromEntries(silos.map((s) => [s.code, s]));
-  const rinfuzeByCode = Object.fromEntries(rinfuze.map((r) => [r.code, r]));
 
   // readings je već sortiran po recorded_at desc, pa je prvo pojavljivanje
   // po silo_id ujedno i zadnje mjerenje za taj silos.
@@ -391,44 +608,41 @@ export default function SiloStockDashboard({ user, canEdit = false, hideTopBorde
         <span>Zadržite kursor preko silosa za zadnje mjerenje</span>
       </div>
 
-      <div className="space-y-4">
-        <Group
-          title="Silosi S1–S2"
-          siloCodes={["S1", "S2"]}
-          rinfuzaCodes={["R1"]}
-          silosByCode={silosByCode}
-          rinfuzeByCode={rinfuzeByCode}
-          statsBySiloId={statsBySiloId}
-          readingsBySiloId={readingsBySiloId}
-          canEdit={canEdit}
-          onSubmit={handleSubmitReading}
-          savingCode={savingCode}
-        />
-        <Group
-          title="Silosi S3–S4"
-          siloCodes={["S3", "S4"]}
-          rinfuzaCodes={["R2", "R3"]}
-          silosByCode={silosByCode}
-          rinfuzeByCode={rinfuzeByCode}
-          statsBySiloId={statsBySiloId}
-          readingsBySiloId={readingsBySiloId}
-          canEdit={canEdit}
-          onSubmit={handleSubmitReading}
-          savingCode={savingCode}
-        />
-        <Group
-          title="Silosi S5–S6 · konusno dno"
-          siloCodes={["S5", "S6"]}
-          rinfuzaCodes={["R4"]}
-          silosByCode={silosByCode}
-          rinfuzeByCode={rinfuzeByCode}
-          statsBySiloId={statsBySiloId}
-          readingsBySiloId={readingsBySiloId}
-          canEdit={canEdit}
-          onSubmit={handleSubmitReading}
-          savingCode={savingCode}
-        />
-      </div>
+      {canEdit ? (
+        // Radniku na mlinu je bitno da unese sve silose brzo, bez skrolanja
+        // kroz grupe po dva - svi silosi su u jednom redu, a status rinfuza
+        // je posebna, kompaktna sekcija ispod.
+        <div className="space-y-4">
+          <AllSilosRow
+            silos={silos}
+            statsBySiloId={statsBySiloId}
+            readingsBySiloId={readingsBySiloId}
+            canEdit={canEdit}
+            onSubmit={handleSubmitReading}
+            savingCode={savingCode}
+          />
+          <RinfuzaRow rinfuzeList={rinfuze} silosByCode={silosByCode} statsBySiloId={statsBySiloId} />
+        </div>
+      ) : (
+        // Admin/supervizor: ilustrovani cijevni prikaz po rinfuzi (cijevi +
+        // kamion-cisterna), po uzoru na korisnikove referentne skice. S3/S4
+        // se crtaju dva puta (za R2 i za R3) jer hrane obje rinfuze sa
+        // različitim mehanizmom.
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          {rinfuze.map((rinfuza) => {
+            const [leftCode, rightCode] = RINFUZA_SOURCE_CODES[rinfuza.code] || [];
+            return (
+              <RinfuzaScene
+                key={rinfuza.id}
+                rinfuza={rinfuza}
+                leftSilo={silosByCode[leftCode]}
+                rightSilo={silosByCode[rightCode]}
+                statsBySiloId={statsBySiloId}
+              />
+            );
+          })}
+        </div>
+      )}
 
       <p className="mt-4 text-xs text-gray-400">
         Mjerenje = prazan prostor od vrha silosa do površine cementa, u
