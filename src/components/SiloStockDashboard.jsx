@@ -313,6 +313,79 @@ function SiloVisual({ silo, cx, stats, ok, hasData }) {
   );
 }
 
+// R3: cement izlazi s DNA oba silosa, ide zajedničkim donjim vodom, diže se
+// (elevator/riser) do visine iznad cisterne, pa se preko gornjeg voda
+// raspoređuje u dva mala hoppera, odakle slobodnim padom ide u cisternu.
+// Silosi su namjerno jedan pored drugog (desno), hopperi+kamion su lijevo -
+// korisnikova tačna referentna skica.
+const HOPPER_W = 640;
+const HOPPER_H = 430;
+const HOPPER_SILO_LEFT_CX = 400;
+const HOPPER_SILO_RIGHT_CX = 540;
+const HOPPER_Y_BOTTOM = SILO_BOTTOM + 32;
+const HOPPER_RISER_X = 290;
+const HOPPER_HEADER_Y = 122;
+const HOPPER1_X = 110;
+const HOPPER2_X = 190;
+const HOPPER_TOP_Y = 164;
+const HOPPER_BOTTOM_Y = 234;
+const HOPPER_MERGE_X = 150;
+const HOPPER_MERGE_Y = 254;
+const HOPPER_STEM_END_Y = 310;
+const HOPPER_TRUCK_Y = 314;
+const VALVE_COLOR = "#c0392b";
+
+function HopperScene({ rinfuza, leftSilo, rightSilo, leftStats, rightStats, leftHasData, rightHasData, leftOk, rightOk, leftColor, rightColor, stemColor, status }) {
+  const leftDropD = `M ${HOPPER_SILO_LEFT_CX} ${SILO_BOTTOM} L ${HOPPER_SILO_LEFT_CX} ${HOPPER_Y_BOTTOM}`;
+  const rightDropD = `M ${HOPPER_SILO_RIGHT_CX} ${SILO_BOTTOM} L ${HOPPER_SILO_RIGHT_CX} ${HOPPER_Y_BOTTOM} L ${HOPPER_SILO_LEFT_CX} ${HOPPER_Y_BOTTOM}`;
+  const mainD = [
+    `M ${HOPPER_SILO_LEFT_CX} ${HOPPER_Y_BOTTOM} L ${HOPPER_RISER_X} ${HOPPER_Y_BOTTOM} L ${HOPPER_RISER_X} ${HOPPER_HEADER_Y} L ${HOPPER1_X} ${HOPPER_HEADER_Y} L ${HOPPER1_X} ${HOPPER_TOP_Y}`,
+    `M ${HOPPER_RISER_X} ${HOPPER_HEADER_Y} L ${HOPPER2_X} ${HOPPER_HEADER_Y} L ${HOPPER2_X} ${HOPPER_TOP_Y}`,
+    `M ${HOPPER1_X} ${HOPPER_BOTTOM_Y} L ${HOPPER_MERGE_X} ${HOPPER_MERGE_Y}`,
+    `M ${HOPPER2_X} ${HOPPER_BOTTOM_Y} L ${HOPPER_MERGE_X} ${HOPPER_MERGE_Y}`,
+    `M ${HOPPER_MERGE_X} ${HOPPER_MERGE_Y} L ${HOPPER_MERGE_X} ${HOPPER_STEM_END_Y}`,
+  ].join(" ");
+
+  return (
+    <div>
+      <div className="overflow-x-auto">
+        <svg width={HOPPER_W} height={HOPPER_H} viewBox={`0 0 ${HOPPER_W} ${HOPPER_H}`} className="mx-auto">
+          <SiloVisual silo={leftSilo} cx={HOPPER_SILO_LEFT_CX} stats={leftStats} ok={leftOk} hasData={leftHasData} />
+          <SiloVisual silo={rightSilo} cx={HOPPER_SILO_RIGHT_CX} stats={rightStats} ok={rightOk} hasData={rightHasData} />
+
+          <path d={mainD} stroke={stemColor} strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={leftDropD} stroke={leftColor} strokeWidth="7" fill="none" strokeLinecap="round" />
+          <path d={rightDropD} stroke={rightColor} strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx={HOPPER_SILO_LEFT_CX} cy={SILO_BOTTOM} r="5" fill={VALVE_COLOR} stroke="#7f1d1d" strokeWidth="1" />
+          <circle cx={HOPPER_SILO_RIGHT_CX} cy={SILO_BOTTOM} r="5" fill={VALVE_COLOR} stroke="#7f1d1d" strokeWidth="1" />
+
+          <polygon
+            points={`${HOPPER1_X - 16},${HOPPER_TOP_Y} ${HOPPER1_X + 16},${HOPPER_TOP_Y} ${HOPPER1_X + 8},${HOPPER_BOTTOM_Y} ${HOPPER1_X - 8},${HOPPER_BOTTOM_Y}`}
+            fill="#c7cbcf"
+            stroke="#6b7280"
+            strokeWidth="1.2"
+          />
+          <polygon
+            points={`${HOPPER2_X - 16},${HOPPER_TOP_Y} ${HOPPER2_X + 16},${HOPPER_TOP_Y} ${HOPPER2_X + 8},${HOPPER_BOTTOM_Y} ${HOPPER2_X - 8},${HOPPER_BOTTOM_Y}`}
+            fill="#c7cbcf"
+            stroke="#6b7280"
+            strokeWidth="1.2"
+          />
+
+          <TankerTruck x={HOPPER_MERGE_X} y={HOPPER_TRUCK_Y} />
+          <text x={HOPPER_MERGE_X} y={HOPPER_TRUCK_Y - 8} textAnchor="middle" fontSize="14" fontWeight="800" fill="#111827">
+            {rinfuza.label}
+          </text>
+          <text x={HOPPER_MERGE_X} y={HOPPER_H - 8} textAnchor="middle" fontSize="12" fontWeight="700" fill={status.ok ? "#059669" : "#dc2626"}>
+            {status.ok ? "✓ AKTIVNA" : "✗ NEDOVOLJNO"}
+          </text>
+        </svg>
+      </div>
+      <p className="mt-1 text-center text-[11px] text-gray-400">{RINFUZA_MECHANISM[rinfuza.code]}</p>
+    </div>
+  );
+}
+
 function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
   if (!leftSilo || !rightSilo) return null;
   const mechanism = RINFUZA_VISUAL_MECHANISM[rinfuza.code];
@@ -326,6 +399,26 @@ function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
   const leftColor = !leftHasData ? NEUTRAL_COLOR : leftOk ? OK_COLOR : BAD_COLOR;
   const rightColor = !rightHasData ? NEUTRAL_COLOR : rightOk ? OK_COLOR : BAD_COLOR;
   const stemColor = !leftHasData && !rightHasData ? NEUTRAL_COLOR : status.ok ? OK_COLOR : BAD_COLOR;
+
+  if (mechanism === "hopper") {
+    return (
+      <HopperScene
+        rinfuza={rinfuza}
+        leftSilo={leftSilo}
+        rightSilo={rightSilo}
+        leftStats={leftStats}
+        rightStats={rightStats}
+        leftHasData={leftHasData}
+        rightHasData={rightHasData}
+        leftOk={leftOk}
+        rightOk={rightOk}
+        leftColor={leftColor}
+        rightColor={rightColor}
+        stemColor={stemColor}
+        status={status}
+      />
+    );
+  }
 
   let leftPipeD;
   let rightPipeD;
@@ -347,36 +440,10 @@ function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
         </text>
       </g>
     );
-  } else if (mechanism === "cone") {
+  } else {
     // R4: cijev direktno s dna konusa, bez praga.
     leftPipeD = `M ${LEFT_CX} ${SILO_BOTTOM} L ${LEFT_CX} ${SILO_BOTTOM + 36} L ${MERGE_X} ${MERGE_Y}`;
     rightPipeD = `M ${RIGHT_CX} ${SILO_BOTTOM} L ${RIGHT_CX} ${SILO_BOTTOM + 36} L ${MERGE_X} ${MERGE_Y}`;
-  } else {
-    // R3: diže se u male silose (hoppere) iznad cisterne, pa slobodni pad.
-    const hopperTopY = SILO_TOP + 10;
-    const hopperBottomY = SILO_TOP + 50;
-    const hopper1X = MERGE_X - 35;
-    const hopper2X = MERGE_X + 35;
-    leftPipeD = `M ${LEFT_X + SILO_W} ${SILO_TOP + 20} L ${hopper1X} ${SILO_TOP + 20} L ${hopper1X} ${hopperTopY}`;
-    rightPipeD = `M ${RIGHT_X} ${SILO_TOP + 20} L ${hopper2X} ${SILO_TOP + 20} L ${hopper2X} ${hopperTopY}`;
-    extra = (
-      <g>
-        <polygon
-          points={`${hopper1X - 16},${hopperTopY} ${hopper1X + 16},${hopperTopY} ${hopper1X + 8},${hopperBottomY} ${hopper1X - 8},${hopperBottomY}`}
-          fill="#c7cbcf"
-          stroke="#6b7280"
-          strokeWidth="1.2"
-        />
-        <polygon
-          points={`${hopper2X - 16},${hopperTopY} ${hopper2X + 16},${hopperTopY} ${hopper2X + 8},${hopperBottomY} ${hopper2X - 8},${hopperBottomY}`}
-          fill="#c7cbcf"
-          stroke="#6b7280"
-          strokeWidth="1.2"
-        />
-        <path d={`M ${hopper1X} ${hopperBottomY} L ${MERGE_X} ${MERGE_Y}`} stroke={leftColor} strokeWidth="7" fill="none" strokeLinecap="round" />
-        <path d={`M ${hopper2X} ${hopperBottomY} L ${MERGE_X} ${MERGE_Y}`} stroke={rightColor} strokeWidth="7" fill="none" strokeLinecap="round" />
-      </g>
-    );
   }
 
   return (
