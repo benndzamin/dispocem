@@ -259,19 +259,6 @@ function siloBodyPath(conical, w, h) {
   return `M0,0 L${w},0 L${w},${h} L0,${h} Z`;
 }
 
-// Oznaka tonaže položena preko cijevi/korita (umjesto posebnog okvira ispod
-// silosa) - korisnikov zahtjev.
-function PipeLabel({ x, y, text }) {
-  return (
-    <g>
-      <rect x={x - 25} y={y - 10} width="50" height="16" rx="3" fill="#f3f4f6" stroke="#9ca3af" strokeWidth="0.75" opacity="0.95" />
-      <text x={x} y={y + 3} textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="10" fontWeight="700" fill="#374151">
-        {text}
-      </text>
-    </g>
-  );
-}
-
 function TankerTruck({ x, y }) {
   const w = 150;
   const h = 66;
@@ -323,11 +310,19 @@ function SiloVisual({ silo, cx, stats, ok, hasData }) {
       {hasData && (
         <rect x="0" y={h - fillPx} width={w} height={fillPx} fill={statusColor} opacity="0.55" clipPath={`url(#${clipId})`} />
       )}
-      <text x={w / 2} y="24" textAnchor="middle" fontSize="17" fontWeight="800" fill="#fff">
+      <text x={w / 2} y="27" textAnchor="middle" fontSize="20" fontWeight="800" fill="#fff">
         {silo.label}
       </text>
-      <text x={w / 2} y="54" textAnchor="middle" fontSize="22" fontWeight="900" fill={statusColor}>
+      <text x={w / 2} y="54" textAnchor="middle" fontSize="18" fontWeight="900" fill="#111827">
         {hasData ? `${Math.round(pct * 100)}%` : "—"}
+      </text>
+
+      {/* Tonaža - u donjoj vizuelnoj četvrtini silosa (80% visine), uvećano
+          polje; pozicija je na 80% (ne dublje) da polje ostane unutar pune
+          širine i kod konusnog dna S5/S6. */}
+      <rect x={w / 2 - 36} y={h * 0.8 - 11} width="72" height="22" rx="4" fill="#eef0f1" stroke="#9ca3af" />
+      <text x={w / 2} y={h * 0.8 + 4} textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="12" fontWeight="700" fill="#374151">
+        {stats ? `${fmt1(stats.tons)} t` : "— t"}
       </text>
     </g>
   );
@@ -378,8 +373,6 @@ function HopperScene({ rinfuza, leftSilo, rightSilo, leftStats, rightStats, left
           <path d={rightDropD} stroke={rightColor} strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           <circle cx={HOPPER_SILO_LEFT_CX} cy={SILO_BOTTOM} r="5" fill={VALVE_COLOR} stroke="#7f1d1d" strokeWidth="1" />
           <circle cx={HOPPER_SILO_RIGHT_CX} cy={SILO_BOTTOM} r="5" fill={VALVE_COLOR} stroke="#7f1d1d" strokeWidth="1" />
-          {leftStats && <PipeLabel x={HOPPER_SILO_LEFT_CX} y={SILO_BOTTOM + 16} text={`${fmt1(leftStats.tons)} t`} />}
-          {rightStats && <PipeLabel x={HOPPER_SILO_RIGHT_CX} y={SILO_BOTTOM + 16} text={`${fmt1(rightStats.tons)} t`} />}
 
           <polygon
             points={`${HOPPER1_X - 26},${HOPPER_TOP_Y} ${HOPPER1_X + 26},${HOPPER_TOP_Y} ${HOPPER1_X + 13},${HOPPER_BOTTOM_Y} ${HOPPER1_X - 13},${HOPPER_BOTTOM_Y}`}
@@ -460,8 +453,6 @@ function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
         <text x={MERGE_X} y={tapY - 10} textAnchor="middle" fontSize="9" fill="#9ca3af">
           prag {fmt1(Number(rinfuza.threshold_empty_m))} m odozgo
         </text>
-        {leftStats && <PipeLabel x={LEFT_X + SILO_W + 11} y={tapY - 14} text={`${fmt1(leftStats.tons)} t`} />}
-        {rightStats && <PipeLabel x={RIGHT_X - 11} y={tapY - 14} text={`${fmt1(rightStats.tons)} t`} />}
       </g>
     );
   } else {
@@ -471,12 +462,6 @@ function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
     const rightBottom = siloDims(rightSilo).bottom;
     leftPipeD = `M ${LEFT_CX} ${leftBottom} L ${LEFT_CX} ${leftBottom + 36} L ${MERGE_X} ${MERGE_Y}`;
     rightPipeD = `M ${RIGHT_CX} ${rightBottom} L ${RIGHT_CX} ${rightBottom + 36} L ${MERGE_X} ${MERGE_Y}`;
-    extra = (
-      <g>
-        {leftStats && <PipeLabel x={LEFT_CX} y={leftBottom + 18} text={`${fmt1(leftStats.tons)} t`} />}
-        {rightStats && <PipeLabel x={RIGHT_CX} y={rightBottom + 18} text={`${fmt1(rightStats.tons)} t`} />}
-      </g>
-    );
   }
 
   return (
