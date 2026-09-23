@@ -4,11 +4,13 @@ import { supabase } from "../supabaseClient";
 const ROLE_LABELS = {
   wb_supervisor: "Supervizor vage",
   wb_operator: "Operater vage",
+  mill_operator: "Radnik na mlinu cementa",
 };
 
 const ROLE_OPTIONS = [
   { value: "wb_supervisor", label: ROLE_LABELS.wb_supervisor },
   { value: "wb_operator", label: ROLE_LABELS.wb_operator },
+  { value: "mill_operator", label: ROLE_LABELS.mill_operator },
 ];
 
 export default function StaffManagement({
@@ -47,7 +49,7 @@ export default function StaffManagement({
     const { data, error } = await supabase
       .from("users")
       .select("*")
-      .in("rola", ["wb_supervisor", "wb_operator"])
+      .in("rola", ["wb_supervisor", "wb_operator", "mill_operator"])
       .order("created_at", { ascending: false });
     setLoading(false);
     if (!error) {

@@ -8,6 +8,7 @@ import CementCatalogManager from "./CementCatalogManager";
 import NewAnnouncementAlerts from "./NewAnnouncementAlerts";
 import PendingApprovalsList from "./PendingApprovalsList";
 import NoticeScheduleSettings from "./NoticeScheduleSettings";
+import SiloStockDashboard from "./SiloStockDashboard";
 import useNewAnnouncementAlerts from "../hooks/useNewAnnouncementAlerts";
 import usePendingApprovalsCount from "../hooks/usePendingApprovalsCount";
 
@@ -15,6 +16,7 @@ const tabs = [
   { key: "home", label: "Početna", mobileLabel: "Početna" },
   { key: "buyers", label: "Kupci", mobileLabel: "Kupci" },
   { key: "cement", label: "Vrste cementa", mobileLabel: "Cement" },
+  { key: "silos", label: "Raspoloživi cement", mobileLabel: "Silosi" },
   { key: "announcements", label: "Najave", mobileLabel: "Najave" },
   { key: "approvals", label: "Odobrenja", mobileLabel: "Odobr." },
   { key: "schedule", label: "Vrijeme najave", mobileLabel: "Raspored" },
@@ -350,6 +352,10 @@ export default function VagaSupervisor({ user }) {
         )}
 
         {activeTab === "cement" && <CementCatalogManager />}
+
+        {activeTab === "silos" && (
+          <SiloStockDashboard canEdit={false} hideTopBorder />
+        )}
 
         {activeTab === "announcements" && (
           <AnnouncementsList
