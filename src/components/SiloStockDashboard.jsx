@@ -237,14 +237,39 @@ const OK_COLOR = "#22c55e";
 const BAD_COLOR = "#ef4444";
 const NEUTRAL_COLOR = "#9ca3af";
 
-function siloBodyPath(conical) {
+// S5/S6 (konusni) su nacrtani malo manji od S1-S4 - fizički su i niži (18m
+// naspram 20m), a i korisnik je eksplicitno tražio da vizuelno budu manji.
+const CONICAL_SCALE = 0.82;
+
+function siloDims(silo) {
+  const conical = !!silo.conical_height_m;
+  const w = conical ? SILO_W * CONICAL_SCALE : SILO_W;
+  const h = conical ? SILO_H * CONICAL_SCALE : SILO_H;
+  return { conical, w, h, bottom: SILO_TOP + h };
+}
+
+function siloBodyPath(conical, w, h) {
   if (conical) {
-    const cylH = SILO_H * (13 / 18);
-    const x1 = (SILO_W - 24) / 2;
-    const x2 = x1 + 24;
-    return `M0,0 L${SILO_W},0 L${SILO_W},${cylH} L${x2},${SILO_H} L${x1},${SILO_H} L0,${cylH} Z`;
+    const cylH = h * (13 / 18);
+    const coneBottomW = w * 0.19;
+    const x1 = (w - coneBottomW) / 2;
+    const x2 = x1 + coneBottomW;
+    return `M0,0 L${w},0 L${w},${cylH} L${x2},${h} L${x1},${h} L0,${cylH} Z`;
   }
-  return `M0,0 L${SILO_W},0 L${SILO_W},${SILO_H} L0,${SILO_H} Z`;
+  return `M0,0 L${w},0 L${w},${h} L0,${h} Z`;
+}
+
+// Oznaka tonaže položena preko cijevi/korita (umjesto posebnog okvira ispod
+// silosa) - korisnikov zahtjev.
+function PipeLabel({ x, y, text }) {
+  return (
+    <g>
+      <rect x={x - 25} y={y - 10} width="50" height="16" rx="3" fill="#f3f4f6" stroke="#9ca3af" strokeWidth="0.75" opacity="0.95" />
+      <text x={x} y={y + 3} textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="10" fontWeight="700" fill="#374151">
+        {text}
+      </text>
+    </g>
+  );
 }
 
 function TankerTruck({ x, y }) {
@@ -265,22 +290,22 @@ function TankerTruck({ x, y }) {
 }
 
 function SiloVisual({ silo, cx, stats, ok, hasData }) {
-  const conical = !!silo.conical_height_m;
+  const { conical, w, h } = siloDims(silo);
   const pct = stats?.pct ?? 0;
-  const fillPx = pct * SILO_H;
-  const path = siloBodyPath(conical);
+  const fillPx = pct * h;
+  const path = siloBodyPath(conical, w, h);
   const clipId = `scene-clip-${silo.code}`;
   const gradId = `scene-grad-${silo.code}`;
   const statusColor = !hasData ? NEUTRAL_COLOR : ok ? OK_COLOR : BAD_COLOR;
-  const x = cx - SILO_W / 2;
+  const x = cx - w / 2;
 
   return (
     <g transform={`translate(${x}, ${SILO_TOP})`}>
-      <rect x={SILO_W / 2 - 34} y="-38" width="68" height="20" rx="4" fill="#eef0f1" stroke="#9ca3af" />
-      <text x={SILO_W / 2} y="-24" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="11" fontWeight="700" fill="#374151">
+      <rect x={w / 2 - 34} y="-38" width="68" height="20" rx="4" fill="#eef0f1" stroke="#9ca3af" />
+      <text x={w / 2} y="-24" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="11" fontWeight="700" fill="#374151">
         {stats ? `${fmt1(stats.avgEmpty)} m` : "0.0 m"}
       </text>
-      <rect x={SILO_W / 2 - 10} y="-14" width="20" height="7" rx="2" fill="#4b5563" />
+      <rect x={w / 2 - 10} y="-14" width="20" height="7" rx="2" fill="#4b5563" />
 
       <defs>
         <linearGradient id={gradId} x1="0" x2="1">
@@ -296,18 +321,13 @@ function SiloVisual({ silo, cx, stats, ok, hasData }) {
       </defs>
       <path d={path} fill={`url(#${gradId})`} stroke="#6b7280" strokeWidth="1.5" />
       {hasData && (
-        <rect x="0" y={SILO_H - fillPx} width={SILO_W} height={fillPx} fill={statusColor} opacity="0.55" clipPath={`url(#${clipId})`} />
+        <rect x="0" y={h - fillPx} width={w} height={fillPx} fill={statusColor} opacity="0.55" clipPath={`url(#${clipId})`} />
       )}
-      <text x={SILO_W / 2} y="24" textAnchor="middle" fontSize="17" fontWeight="800" fill="#fff">
+      <text x={w / 2} y="24" textAnchor="middle" fontSize="17" fontWeight="800" fill="#fff">
         {silo.label}
       </text>
-      <text x={SILO_W / 2} y="54" textAnchor="middle" fontSize="22" fontWeight="900" fill={statusColor}>
+      <text x={w / 2} y="54" textAnchor="middle" fontSize="22" fontWeight="900" fill={statusColor}>
         {hasData ? `${Math.round(pct * 100)}%` : "—"}
-      </text>
-
-      <rect x={SILO_W / 2 - 34} y={SILO_H + 6} width="68" height="20" rx="4" fill="#eef0f1" stroke="#9ca3af" />
-      <text x={SILO_W / 2} y={SILO_H + 20} textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="11" fontWeight="700" fill="#374151">
-        {stats ? `${fmt1(stats.tons)} t` : "— t"}
       </text>
     </g>
   );
@@ -358,15 +378,17 @@ function HopperScene({ rinfuza, leftSilo, rightSilo, leftStats, rightStats, left
           <path d={rightDropD} stroke={rightColor} strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           <circle cx={HOPPER_SILO_LEFT_CX} cy={SILO_BOTTOM} r="5" fill={VALVE_COLOR} stroke="#7f1d1d" strokeWidth="1" />
           <circle cx={HOPPER_SILO_RIGHT_CX} cy={SILO_BOTTOM} r="5" fill={VALVE_COLOR} stroke="#7f1d1d" strokeWidth="1" />
+          {leftStats && <PipeLabel x={HOPPER_SILO_LEFT_CX} y={SILO_BOTTOM + 16} text={`${fmt1(leftStats.tons)} t`} />}
+          {rightStats && <PipeLabel x={HOPPER_SILO_RIGHT_CX} y={SILO_BOTTOM + 16} text={`${fmt1(rightStats.tons)} t`} />}
 
           <polygon
-            points={`${HOPPER1_X - 16},${HOPPER_TOP_Y} ${HOPPER1_X + 16},${HOPPER_TOP_Y} ${HOPPER1_X + 8},${HOPPER_BOTTOM_Y} ${HOPPER1_X - 8},${HOPPER_BOTTOM_Y}`}
+            points={`${HOPPER1_X - 26},${HOPPER_TOP_Y} ${HOPPER1_X + 26},${HOPPER_TOP_Y} ${HOPPER1_X + 13},${HOPPER_BOTTOM_Y} ${HOPPER1_X - 13},${HOPPER_BOTTOM_Y}`}
             fill="#c7cbcf"
             stroke="#6b7280"
             strokeWidth="1.2"
           />
           <polygon
-            points={`${HOPPER2_X - 16},${HOPPER_TOP_Y} ${HOPPER2_X + 16},${HOPPER_TOP_Y} ${HOPPER2_X + 8},${HOPPER_BOTTOM_Y} ${HOPPER2_X - 8},${HOPPER_BOTTOM_Y}`}
+            points={`${HOPPER2_X - 26},${HOPPER_TOP_Y} ${HOPPER2_X + 26},${HOPPER_TOP_Y} ${HOPPER2_X + 13},${HOPPER_BOTTOM_Y} ${HOPPER2_X - 13},${HOPPER_BOTTOM_Y}`}
             fill="#c7cbcf"
             stroke="#6b7280"
             strokeWidth="1.2"
@@ -422,7 +444,7 @@ function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
 
   let leftPipeD;
   let rightPipeD;
-  let extra = null;
+  let extra;
 
   if (mechanism === "tap") {
     // R1/R2: cijev se fizički spaja na visini praga (npr. 12m odozgo), ne
@@ -438,12 +460,23 @@ function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
         <text x={MERGE_X} y={tapY - 10} textAnchor="middle" fontSize="9" fill="#9ca3af">
           prag {fmt1(Number(rinfuza.threshold_empty_m))} m odozgo
         </text>
+        {leftStats && <PipeLabel x={LEFT_X + SILO_W + 11} y={tapY - 14} text={`${fmt1(leftStats.tons)} t`} />}
+        {rightStats && <PipeLabel x={RIGHT_X - 11} y={tapY - 14} text={`${fmt1(rightStats.tons)} t`} />}
       </g>
     );
   } else {
-    // R4: cijev direktno s dna konusa, bez praga.
-    leftPipeD = `M ${LEFT_CX} ${SILO_BOTTOM} L ${LEFT_CX} ${SILO_BOTTOM + 36} L ${MERGE_X} ${MERGE_Y}`;
-    rightPipeD = `M ${RIGHT_CX} ${SILO_BOTTOM} L ${RIGHT_CX} ${SILO_BOTTOM + 36} L ${MERGE_X} ${MERGE_Y}`;
+    // R4: cijev direktno s dna konusa, bez praga. Konusni silosi su manji
+    // (siloDims), pa se cijev spaja na njihovo stvarno (niže) dno.
+    const leftBottom = siloDims(leftSilo).bottom;
+    const rightBottom = siloDims(rightSilo).bottom;
+    leftPipeD = `M ${LEFT_CX} ${leftBottom} L ${LEFT_CX} ${leftBottom + 36} L ${MERGE_X} ${MERGE_Y}`;
+    rightPipeD = `M ${RIGHT_CX} ${rightBottom} L ${RIGHT_CX} ${rightBottom + 36} L ${MERGE_X} ${MERGE_Y}`;
+    extra = (
+      <g>
+        {leftStats && <PipeLabel x={LEFT_CX} y={leftBottom + 18} text={`${fmt1(leftStats.tons)} t`} />}
+        {rightStats && <PipeLabel x={RIGHT_CX} y={rightBottom + 18} text={`${fmt1(rightStats.tons)} t`} />}
+      </g>
+    );
   }
 
   return (
