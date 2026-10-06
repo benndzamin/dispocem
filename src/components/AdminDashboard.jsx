@@ -5,6 +5,7 @@ import BuyerManagement from "./BuyerManagement";
 import AnnouncementsList from "./AnnouncementsList";
 import StaffManagement from "./StaffManagement";
 import SiloStockDashboard from "./SiloStockDashboard";
+import DashboardTabs from "./DashboardTabs";
 
 const tabs = [
   { key: "home", label: "Početna", mobileLabel: "Početna" },
@@ -101,7 +102,7 @@ export default function AdminDashboard({ user }) {
         </div>
       )}
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-6">
+      <div className="rounded-2xl border border-gray-200 bg-white p-3 sm:p-6">
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="pointer-events-none absolute inset-x-0 bottom-0 border-b border-gray-200" />
           <div className="pb-4">
@@ -114,26 +115,7 @@ export default function AdminDashboard({ user }) {
             </p>
           </div>
 
-          <div className="w-full sm:w-auto">
-            <div className="relative flex items-end gap-1 sm:w-max sm:gap-2">
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 border-b border-gray-200" />
-              {tabs.map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`relative min-w-0 flex-1 truncate rounded-t-lg border px-1.5 py-2 text-center text-[11px] transition-colors sm:flex-none sm:px-4 sm:py-2.5 sm:text-sm ${
-                    activeTab === tab.key
-                      ? "border-gray-200 border-b-white bg-white font-semibold text-brand-red"
-                      : "border-transparent border-b-gray-200 bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
-                  }`}
-                >
-                  <span className="sm:hidden">{tab.mobileLabel}</span>
-                  <span className="hidden sm:inline">{tab.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+          <DashboardTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
         </div>
 
         {activeTab === "home" && (
@@ -189,7 +171,7 @@ export default function AdminDashboard({ user }) {
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-              <div className="rounded-3xl border border-gray-200 bg-gray-50 p-6">
+              <div className="rounded-3xl border border-gray-200 bg-gray-50 p-3 sm:p-6">
                 <div className="mb-4 flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">
@@ -276,7 +258,7 @@ export default function AdminDashboard({ user }) {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-gray-200 bg-gray-50 p-6">
+              <div className="rounded-3xl border border-gray-200 bg-gray-50 p-3 sm:p-6">
                 <div className="mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">
                     Najnovije najave
@@ -299,7 +281,7 @@ export default function AdminDashboard({ user }) {
                     {recentAnnouncements.map((announcement) => (
                       <div
                         key={announcement.id}
-                        className="rounded-2xl border border-gray-200 bg-white p-4"
+                        className="rounded-2xl border border-gray-200 bg-white p-3 sm:p-4"
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div>

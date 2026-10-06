@@ -115,7 +115,7 @@ export default function NoticeScheduleSettings({
 
   return (
     <div
-      className={`bg-white border-gray-200 p-6 ${
+      className={`bg-white border-gray-200 p-3 sm:p-6 ${
         hideTopBorder ? "border-x border-b rounded-b-xl" : "border rounded-xl"
       }`}
     >

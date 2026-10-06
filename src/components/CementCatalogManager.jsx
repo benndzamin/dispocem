@@ -180,7 +180,7 @@ export default function CementCatalogManager() {
       )}
 
       {/* Tabela aktivnih vrsta cementa */}
-      <div className="rounded-b-2xl border-x border-b border-gray-200 bg-white p-6">
+      <div className="rounded-b-2xl border-x border-b border-gray-200 bg-white p-3 sm:p-6">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">
@@ -280,7 +280,7 @@ export default function CementCatalogManager() {
             {activeItems.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4"
+                className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-3 sm:p-4"
               >
                 <div>
                   <div className="font-semibold text-gray-900">

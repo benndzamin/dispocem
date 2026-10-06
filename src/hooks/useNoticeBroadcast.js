@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import uniqueId from "../utils/uniqueId";
 
 const STORAGE_PREFIX = "dispocem:notice-broadcast-seen:";
 
@@ -48,7 +49,7 @@ export default function useNoticeBroadcast(userId) {
     fetchLatest();
 
     const channel = supabase
-      .channel(`notice-broadcast-${crypto.randomUUID()}`)
+      .channel(`notice-broadcast-${uniqueId()}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notice_broadcasts" },

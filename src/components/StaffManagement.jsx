@@ -146,7 +146,7 @@ export default function StaffManagement({
 
   return (
     <div
-      className={`bg-white border-gray-200 p-6 ${
+      className={`bg-white border-gray-200 p-3 sm:p-6 ${
         hideTopBorder ? "border-x border-b rounded-b-xl" : "border rounded-xl"
       }`}
     >
@@ -376,7 +376,7 @@ export default function StaffManagement({
             {filteredStaff.map((member) => (
               <div
                 key={member.id}
-                className="rounded-xl border border-gray-200 bg-white p-4"
+                className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>

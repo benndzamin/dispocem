@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../supabaseClient";
+import uniqueId from "../utils/uniqueId";
 
 const DISPLAY_MS = 60000;
 
@@ -36,7 +37,7 @@ export default function useMyAnnouncementAlerts(currentUserId) {
     };
 
     const channel = supabase
-      .channel(`my-announcement-alerts-${crypto.randomUUID()}`)
+      .channel(`my-announcement-alerts-${uniqueId()}`)
       .on(
         "postgres_changes",
         {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import uniqueId from "../utils/uniqueId";
 
 export default function usePendingApprovalsCount() {
   const [count, setCount] = useState(0);
@@ -18,7 +19,7 @@ export default function usePendingApprovalsCount() {
     fetchCount();
 
     const channel = supabase
-      .channel(`pending-approvals-count-${crypto.randomUUID()}`)
+      .channel(`pending-approvals-count-${uniqueId()}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "announcements" },

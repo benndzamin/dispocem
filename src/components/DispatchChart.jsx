@@ -199,7 +199,7 @@ export default function DispatchChart({ refreshKey }) {
   };
 
   return (
-    <div className="rounded-3xl border border-gray-200 bg-gray-50 p-6">
+    <div className="rounded-3xl border border-gray-200 bg-gray-50 p-3 sm:p-6">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-900">

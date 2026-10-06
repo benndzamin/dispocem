@@ -940,7 +940,7 @@ export default function SiloStockDashboard({ user, canEdit = false, hideTopBorde
   if (loading) {
     return (
       <div
-        className={`bg-white p-6 text-sm text-gray-500 ${
+        className={`bg-white p-3 sm:p-6 text-sm text-gray-500 ${
           hideTopBorder ? "rounded-b-2xl border-x border-b border-gray-200" : "rounded-2xl border border-gray-200"
         }`}
       >
@@ -951,7 +951,7 @@ export default function SiloStockDashboard({ user, canEdit = false, hideTopBorde
 
   return (
     <div
-      className={`bg-white p-4 sm:p-6 ${
+      className={`bg-white p-3 sm:p-6 ${
         hideTopBorder ? "rounded-b-2xl border-x border-b border-gray-200" : "rounded-2xl border border-gray-200"
       }`}
     >

@@ -159,7 +159,7 @@ export default function AnnouncementForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 sm:p-6"
+      className="space-y-4 rounded-xl border border-gray-200 bg-white p-3 sm:p-6"
     >
       <div className="grid gap-4 md:grid-cols-2">
         {!isBuyer && (

@@ -94,7 +94,7 @@ export default function RegistracijaKupca() {
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 max-w-2xl mx-auto mt-6">
+    <div className="bg-white border border-gray-200 rounded-xl p-3 sm:p-6 max-w-2xl mx-auto mt-6">
       <h3 className="text-lg font-bold text-gray-900 mb-4">
         👥 Registracija Novog Kupca
       </h3>

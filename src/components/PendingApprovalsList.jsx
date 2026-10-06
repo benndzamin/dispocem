@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../supabaseClient";
+import uniqueId from "../utils/uniqueId";
 
 function formatDate(value) {
   if (!value) return "-";
@@ -47,7 +48,7 @@ export default function PendingApprovalsList({ currentUser }) {
     fetchItems();
 
     const channel = supabase
-      .channel(`pending-approvals-list-${crypto.randomUUID()}`)
+      .channel(`pending-approvals-list-${uniqueId()}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "announcements" },
@@ -339,7 +340,7 @@ export default function PendingApprovalsList({ currentUser }) {
                 type="button"
                 key={item.id}
                 onClick={() => openConfirm(item)}
-                className="w-full rounded-xl border border-gray-200 bg-white p-4 text-left hover:bg-amber-50"
+                className="w-full rounded-xl border border-gray-200 bg-white p-3 sm:p-4 text-left hover:bg-amber-50"
               >
                 <div className="font-semibold text-gray-900">{item.firma}</div>
                 <div className="mt-1 text-sm text-gray-700">

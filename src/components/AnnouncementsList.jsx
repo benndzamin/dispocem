@@ -590,7 +590,7 @@ export default function AnnouncementsList({
 
   return (
     <div
-      className={`bg-white border-gray-200 p-6 ${
+      className={`bg-white border-gray-200 p-3 sm:p-6 ${
         hideTopBorder ? "border-x border-b rounded-b-xl" : "border rounded-xl"
       }`}
     >
@@ -837,7 +837,7 @@ export default function AnnouncementsList({
               return (
               <div
                 key={item.id}
-                className={`rounded-xl border p-4 transition-colors duration-700 ${
+                className={`rounded-xl border p-3 sm:p-4 transition-colors duration-700 ${
                   isPendingApprovalStub
                     ? "border-amber-200 border-dashed bg-amber-50/60"
                     : flashIds.has(item.id)

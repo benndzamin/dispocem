@@ -127,7 +127,7 @@ export default function App() {
       </header>
 
       {/* Ruter ekrana u zavisnosti od role */}
-      <main className="p-6">
+      <main className="px-2 py-4 sm:p-6">
         {userRole === "admin" && <AdminDashboard user={session?.user} />}
 
         {userRole === "wb_supervisor" && (
