@@ -4,10 +4,12 @@ import CementCatalogManager from "./CementCatalogManager";
 import BuyerManagement from "./BuyerManagement";
 import AnnouncementsList from "./AnnouncementsList";
 import StaffManagement from "./StaffManagement";
+import SiloStockDashboard from "./SiloStockDashboard";
 
 const tabs = [
   { key: "home", label: "Početna", mobileLabel: "Početna" },
   { key: "cement", label: "Vrste cementa", mobileLabel: "Cement" },
+  { key: "silos", label: "Raspoloživi cement", mobileLabel: "Silosi" },
   { key: "buyers", label: "Kupci", mobileLabel: "Kupci" },
   { key: "announcements", label: "Najave", mobileLabel: "Najave" },
   { key: "staff", label: "Osoblje", mobileLabel: "Osoblje" },
@@ -348,6 +350,10 @@ export default function AdminDashboard({ user }) {
         )}
 
         {activeTab === "cement" && <CementCatalogManager />}
+
+        {activeTab === "silos" && (
+          <SiloStockDashboard canEdit={false} hideTopBorder />
+        )}
       </div>
     </div>
   );

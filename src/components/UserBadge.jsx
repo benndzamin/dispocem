@@ -17,6 +17,10 @@ const ROLE_DETAILS = {
     title: "Portal kupca",
     desc: "Kupac vidi svoje najave, dodaje nove i može ih brisati.",
   },
+  mill_operator: {
+    title: "Rukovodilac mlina cementa",
+    desc: "Unosi mjere silosa.",
+  },
 };
 
 export default function UserBadge({ user, userProfile }) {

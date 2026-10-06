@@ -10,7 +10,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-const ALLOWED_ROLES = ["wb_supervisor", "wb_operator"];
+const ALLOWED_ROLES = ["wb_supervisor", "wb_operator", "mill_operator"];
 
 function jsonResponse(body: Record<string, unknown>, status: number) {
   return new Response(JSON.stringify(body), {
@@ -80,7 +80,10 @@ Deno.serve(async (req) => {
 
   if (!ALLOWED_ROLES.includes(rola ?? "")) {
     return jsonResponse(
-      { error: "Uloga mora biti supervisor ili operater." },
+      {
+        error:
+          "Uloga mora biti supervisor, operater ili radnik na mlinu cementa.",
+      },
       400,
     );
   }
