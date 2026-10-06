@@ -860,23 +860,26 @@ export default function SiloStockDashboard({ user, canEdit = false, hideTopBorde
   const fetchAll = async () => {
     if (!cache) setLoading(true);
     try {
-      const [silosRes, rinfuzeRes, readingsRes] = await Promise.all([
-        supabase.from("silos").select("*").order("code"),
-        supabase.from("rinfuze").select("*").order("code"),
+      // Uz svaki silos dolazi samo njegovo zadnje mjerenje (limit 1 po silosu),
+      // umjesto cijele historije silo_readings koja raste svakim unosom.
+      const [silosRes, rinfuzeRes] = await Promise.all([
         supabase
-          .from("silo_latest_readings")
-          .select("*, recorded_by_profile:users(email)")
-          .order("recorded_at", { ascending: false }),
+          .from("silos")
+          .select("*, silo_readings(*, recorded_by_profile:users(email))")
+          .order("code")
+          .order("recorded_at", { referencedTable: "silo_readings", ascending: false })
+          .limit(1, { referencedTable: "silo_readings" }),
+        supabase.from("rinfuze").select("*").order("code"),
       ]);
 
       if (silosRes.error) throw silosRes.error;
       if (rinfuzeRes.error) throw rinfuzeRes.error;
-      if (readingsRes.error) throw readingsRes.error;
 
+      const silosData = silosRes.data || [];
       cache = {
-        silos: silosRes.data || [],
+        silos: silosData,
         rinfuze: rinfuzeRes.data || [],
-        readings: readingsRes.data || [],
+        readings: silosData.flatMap((s) => s.silo_readings || []),
       };
       setSilos(cache.silos);
       setRinfuze(cache.rinfuze);
