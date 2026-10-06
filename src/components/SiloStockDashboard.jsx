@@ -842,33 +842,48 @@ function RinfuzaRow({ rinfuzeList, silosByCode, statsBySiloId }) {
   );
 }
 
+// Komponenta se montira iznova pri svakom otvaranju taba, pa zadnje učitane
+// podatke držimo ovdje - ponovno otvaranje je trenutno, a osvježava se u pozadini.
+let cache = null;
+supabase.auth.onAuthStateChange((event) => {
+  if (event === "SIGNED_OUT") cache = null;
+});
+
 export default function SiloStockDashboard({ user, canEdit = false, hideTopBorder = false }) {
-  const [silos, setSilos] = useState([]);
-  const [rinfuze, setRinfuze] = useState([]);
-  const [readings, setReadings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [silos, setSilos] = useState(cache?.silos || []);
+  const [rinfuze, setRinfuze] = useState(cache?.rinfuze || []);
+  const [readings, setReadings] = useState(cache?.readings || []);
+  const [loading, setLoading] = useState(!cache);
   const [message, setMessage] = useState(null);
   const [savingCode, setSavingCode] = useState(null);
 
   const fetchAll = async () => {
-    setLoading(true);
+    if (!cache) setLoading(true);
     try {
-      const [silosRes, rinfuzeRes, readingsRes] = await Promise.all([
-        supabase.from("silos").select("*").order("code"),
-        supabase.from("rinfuze").select("*").order("code"),
+      // Uz svaki silos dolazi samo njegovo zadnje mjerenje (limit 1 po silosu),
+      // umjesto cijele historije silo_readings koja raste svakim unosom.
+      const [silosRes, rinfuzeRes] = await Promise.all([
         supabase
-          .from("silo_readings")
-          .select("*, recorded_by_profile:users(email)")
-          .order("recorded_at", { ascending: false }),
+          .from("silos")
+          .select("*, silo_readings(*, recorded_by_profile:users(email))")
+          .order("code")
+          .order("recorded_at", { referencedTable: "silo_readings", ascending: false })
+          .limit(1, { referencedTable: "silo_readings" }),
+        supabase.from("rinfuze").select("*").order("code"),
       ]);
 
       if (silosRes.error) throw silosRes.error;
       if (rinfuzeRes.error) throw rinfuzeRes.error;
-      if (readingsRes.error) throw readingsRes.error;
 
-      setSilos(silosRes.data || []);
-      setRinfuze(rinfuzeRes.data || []);
-      setReadings(readingsRes.data || []);
+      const silosData = silosRes.data || [];
+      cache = {
+        silos: silosData,
+        rinfuze: rinfuzeRes.data || [],
+        readings: silosData.flatMap((s) => s.silo_readings || []),
+      };
+      setSilos(cache.silos);
+      setRinfuze(cache.rinfuze);
+      setReadings(cache.readings);
     } catch (err) {
       setMessage({ type: "error", text: `Greška pri učitavanju: ${err.message}` });
     } finally {
