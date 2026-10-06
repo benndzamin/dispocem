@@ -18,8 +18,8 @@ const ROLE_DETAILS = {
     desc: "Kupac vidi svoje najave, dodaje nove i može ih brisati.",
   },
   mill_operator: {
-    title: "Radnik na mlinu cementa",
-    desc: "Unosi mjerenja stanja cementa po silosima prilikom svakog redovnog obilaska.",
+    title: "Rukovodilac mlina cementa",
+    desc: "Unosi mjere silosa.",
   },
 };
 

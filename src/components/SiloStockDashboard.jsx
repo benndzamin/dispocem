@@ -12,13 +12,17 @@ function computeSiloStats(silo, avgEmpty) {
   let tons;
 
   if (silo.conical_height_m) {
+    // Konusno dno: zapremina konusa napunjenog do visine h (od vrha konusa
+    // na dnu) raste sa h^3, pa je tona = punKonus * (h / H)^3. punKonus je
+    // conical_height_m * conical_tons_per_meter (S5/S6: 5m * 10 = 50 t).
+    // Iznad konusa je cilindar - linearno po metru (S5/S6: 450 t / 13 m).
     const coneHeight = Number(silo.conical_height_m);
-    const coneRate = Number(silo.conical_tons_per_meter) || 0;
+    const coneFullTons = coneHeight * (Number(silo.conical_tons_per_meter) || 0);
     const cylRate = Number(silo.cylinder_tons_per_meter) || 0;
     tons =
       filledTotal <= coneHeight
-        ? filledTotal * coneRate
-        : coneHeight * coneRate + (filledTotal - coneHeight) * cylRate;
+        ? coneFullTons * Math.pow(Math.max(0, filledTotal) / coneHeight, 3)
+        : coneFullTons + (filledTotal - coneHeight) * cylRate;
   } else {
     tons = filledTotal * (Number(silo.cylinder_tons_per_meter) || 0);
   }
@@ -45,6 +49,18 @@ function computeRinfuzaStatus(rinfuza, sourceSilos, statsBySiloId) {
   return { ok: contributing.length > 0, contributingIds: contributing.map((s) => s.id) };
 }
 
+// Dostupnost pojedinačnog silosa za datu rinfuzu (isti uslovi kao gore).
+const AVAILABILITY = {
+  ok: { label: "dostupan", color: "#22c55e", bg: "#dcfce7", text: "#047857" },
+  bad: { label: "nedostupan", color: "#ef4444", bg: "#fee2e2", text: "#b91c1c" },
+  none: { label: "bez mjerenja", color: "#9ca3af", bg: "#f3f4f6", text: "#6b7280" },
+};
+
+function siloAvailability(silo, stats, status) {
+  if (!stats) return AVAILABILITY.none;
+  return status.contributingIds.includes(silo.id) ? AVAILABILITY.ok : AVAILABILITY.bad;
+}
+
 const RINFUZA_SOURCE_CODES = {
   R1: ["S1", "S2"],
   R2: ["S3", "S4"],
@@ -52,17 +68,10 @@ const RINFUZA_SOURCE_CODES = {
   R4: ["S5", "S6"],
 };
 
-const RINFUZA_MECHANISM = {
-  R1: "Direktna gravitacija · prag 12 m praznine",
-  R2: "Direktna gravitacija · prag 12 m praznine",
-  R3: "Dizanje u male silose + slobodni pad · bez praga",
-  R4: "Dno konusnih silosa · bez praga",
-};
-
 // --- Vizuelni prikaz silosa (SVG, data-driven nivo popune) ------------------
-const PPM = 7; // px po metru - crtano u razmjeri
-const CYL_W = 74;
-const CONE_BOTTOM_W = 20;
+const PPM = 9; // px po metru - crtano u razmjeri
+const CYL_W = 92;
+const CONE_BOTTOM_W = 24;
 
 function siloOutlinePath(silo, heightPx) {
   if (silo.conical_height_m) {
@@ -99,12 +108,61 @@ function SiloGraphic({ silo, stats }) {
           clipPath={`url(#${clipId})`}
         />
       )}
+      <text
+        x={CYL_W / 2}
+        y={heightPx / 2 + 6}
+        textAnchor="middle"
+        fontSize="17"
+        fontWeight="800"
+        fill="#111827"
+      >
+        {stats ? `${Math.round(stats.pct * 100)}%` : "—"}
+      </text>
+      <MeasuredAt x={CYL_W / 2} y={heightPx / 2 + 22} recordedAt={stats?.recordedAt} fontSize={10} lineGap={13} />
     </svg>
   );
 }
 
 function fmt1(n) {
   return (Math.round(n * 10) / 10).toFixed(1);
+}
+
+// "Sada" koji se osvježava svakih 30s, da "prije X" teče u realnom vremenu.
+function useNow(intervalMs = 30000) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(t);
+  }, [intervalMs]);
+  return now;
+}
+
+function formatShortDateTime(iso) {
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}. ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function formatAgo(iso, now) {
+  const mins = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60000));
+  if (mins < 1) return "upravo sada";
+  if (mins < 60) return `prije ${mins}min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `prije ${hours}h ${mins % 60}min`;
+  const days = Math.floor(hours / 24);
+  return `prije ${days}d ${hours % 24}h`;
+}
+
+// Dvije linije ispod procenta na silosu: kad je mjereno + koliko je prošlo.
+function MeasuredAt({ x, y, recordedAt, fontSize = 11, lineGap = 14 }) {
+  const now = useNow();
+  if (!recordedAt) return null;
+  return (
+    <g fontSize={fontSize} fontWeight="600" fill="#374151" textAnchor="middle">
+      <text x={x} y={y}>{formatShortDateTime(recordedAt)}</text>
+      <text x={x} y={y + lineGap} fontWeight="700" fill="#1f2937">{formatAgo(recordedAt, now)}</text>
+    </g>
+  );
 }
 
 function formatDateTime(iso) {
@@ -122,6 +180,8 @@ function SiloCard({ silo, stats, lastReading, canEdit, onSubmit, saving }) {
   const [point1, setPoint1] = useState("");
   const [point2, setPoint2] = useState("");
   const twoPoints = silo.measurement_points === 2;
+  // Dugme "Snimi" je ispod slike silosa, van <form>-a - veže se preko form id.
+  const formId = `silo-form-${silo.code}`;
 
   const tooltip = lastReading
     ? `Zadnje mjerenje: ${lastReading.recorded_by_profile?.email || "nepoznato"} · ${formatDateTime(lastReading.recorded_at)}`
@@ -140,25 +200,12 @@ function SiloCard({ silo, stats, lastReading, canEdit, onSubmit, saving }) {
   return (
     <div
       title={tooltip}
-      className="flex w-36 shrink-0 flex-col items-center rounded-2xl border border-gray-200 bg-white p-3"
+      className="flex w-[calc(50%-0.375rem)] shrink-0 flex-col items-center rounded-2xl border border-gray-200 bg-white p-3 sm:w-36"
     >
       <div className="text-sm font-bold text-gray-900">{silo.label}</div>
 
-      <div className="mt-2">
-        <SiloGraphic silo={silo} stats={stats} />
-      </div>
-
-      <div className="mt-2 text-center">
-        <div className="font-mono text-lg font-semibold text-gray-900">
-          {stats ? `${fmt1(stats.tons)} t` : "— t"}
-        </div>
-        <div className="text-xs text-gray-500">
-          {stats ? `${Math.round(stats.pct * 100)}% popunjenosti` : "Nema mjerenja"}
-        </div>
-      </div>
-
       {canEdit && (
-        <form onSubmit={handleSubmit} className="mt-3 w-full space-y-1.5">
+        <form id={formId} onSubmit={handleSubmit} className="mt-2 w-full">
           {twoPoints ? (
             <div className="flex gap-1">
               <input
@@ -166,7 +213,7 @@ function SiloCard({ silo, stats, lastReading, canEdit, onSubmit, saving }) {
                 step="0.1"
                 min="0"
                 required
-                placeholder="T1"
+                placeholder="m"
                 value={point1}
                 onChange={(e) => setPoint1(e.target.value)}
                 className="w-full min-w-0 rounded-lg border border-gray-300 px-2 py-1 text-xs focus:border-brand-red focus:outline-none focus:ring-2 focus:ring-red-100"
@@ -176,7 +223,7 @@ function SiloCard({ silo, stats, lastReading, canEdit, onSubmit, saving }) {
                 step="0.1"
                 min="0"
                 required
-                placeholder="T2"
+                placeholder="m"
                 value={point2}
                 onChange={(e) => setPoint2(e.target.value)}
                 className="w-full min-w-0 rounded-lg border border-gray-300 px-2 py-1 text-xs focus:border-brand-red focus:outline-none focus:ring-2 focus:ring-red-100"
@@ -188,20 +235,34 @@ function SiloCard({ silo, stats, lastReading, canEdit, onSubmit, saving }) {
               step="0.1"
               min="0"
               required
-              placeholder="Mjerenje (m)"
+              placeholder="m"
               value={point1}
               onChange={(e) => setPoint1(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-2 py-1 text-xs focus:border-brand-red focus:outline-none focus:ring-2 focus:ring-red-100"
             />
           )}
-          <button
-            type="submit"
-            disabled={saving}
-            className="w-full rounded-lg bg-brand-red px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-brand-red-dark disabled:opacity-50"
-          >
-            {saving ? "Snimanje..." : "Snimi"}
-          </button>
         </form>
+      )}
+
+      <div className="mt-2">
+        <SiloGraphic silo={silo} stats={stats} />
+      </div>
+
+      <div className="mt-2 text-center">
+        <div className="font-mono text-lg font-semibold text-gray-900">
+          {stats ? `${fmt1(stats.tons)} t` : "— t"}
+        </div>
+      </div>
+
+      {canEdit && (
+        <button
+          type="submit"
+          form={formId}
+          disabled={saving}
+          className="mt-2 w-full rounded-lg bg-brand-red px-2 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-red-dark disabled:opacity-50"
+        >
+          {saving ? "Snimanje..." : "Snimi"}
+        </button>
       )}
     </div>
   );
@@ -222,15 +283,12 @@ const SILO_W = 130;
 const SILO_TOP = 44;
 const SILO_H = 250;
 const SILO_BOTTOM = SILO_TOP + SILO_H;
-const STEM_END_Y = 410;
-const TRUCK_Y = 414;
-const SCENE_H = 506;
 
 // R1/R2 (tap): pošto se Y-spoj sad dešava odmah kod tap-tačke, kamion se
 // vozi bliže silosima nego kod R4 (kraći, kompaktniji canvas).
 const TAP_TRUCK_Y = 340;
 const TAP_STEM_END_Y = 336;
-const TAP_SCENE_H = 432;
+const TAP_SCENE_H = 412;
 
 const LEFT_X = 20;
 const RIGHT_X = SCENE_W - 20 - SILO_W;
@@ -264,21 +322,150 @@ function siloBodyPath(conical, w, h) {
   return `M0,0 L${w},0 L${w},${h} L0,${h} Z`;
 }
 
-function TankerTruck({ x, y }) {
+// Kamion-cisterna za rasuti cement, bočni pogled (kabina lijevo). Footprint
+// je fiksan 150x66 i centriran na x - otvor za punjenje (dome) je tačno na
+// sredini, ispod uspravne cijevi koja dolazi odozgo.
+function TankerTruck({ x, y, id }) {
   const w = 150;
-  const h = 66;
+  const tankGrad = `tank-grad-${id}`;
+  const cabGrad = `cab-grad-${id}`;
+  const wheels = [22, 110, 130];
+
   return (
     <g transform={`translate(${x - w / 2}, ${y})`}>
-      <rect x="0" y={h - 8} width={w} height="6" rx="2" fill="#8b8f93" />
-      <rect x="38" y="8" width="100" height="34" rx="17" fill="#e8c94a" stroke="#96811f" strokeWidth="1.5" />
-      <rect x="46" y="12" width="84" height="4" rx="2" fill="#fff" opacity="0.5" />
-      <rect x="4" y="6" width="34" height="30" rx="4" fill="#3d4a5c" />
-      <rect x="8" y="10" width="24" height="12" rx="2" fill="#bcdbe6" />
-      <circle cx="20" cy={h - 6} r="9" fill="#222" />
-      <circle cx="60" cy={h - 6} r="9" fill="#222" />
-      <circle cx="118" cy={h - 6} r="9" fill="#222" />
+      <defs>
+        <linearGradient id={tankGrad} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#fbe58a" />
+          <stop offset="35%" stopColor="#ecc94b" />
+          <stop offset="100%" stopColor="#a8861b" />
+        </linearGradient>
+        <linearGradient id={cabGrad} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#4b5d78" />
+          <stop offset="100%" stopColor="#263244" />
+        </linearGradient>
+      </defs>
+
+      {/* sjena */}
+      <ellipse cx={w / 2} cy="65" rx="74" ry="2.5" fill="#000" opacity="0.15" />
+
+      {/* šasija */}
+      <rect x="6" y="45" width="140" height="5" rx="1.5" fill="#374151" />
+
+      {/* ogradica/staza na vrhu cisterne */}
+      <line x1="50" y1="3" x2="140" y2="3" stroke="#6b7280" strokeWidth="1.2" />
+      {[50, 68, 104, 122, 140].map((px) => (
+        <line key={px} x1={px} y1="3" x2={px} y2="8" stroke="#6b7280" strokeWidth="1.2" />
+      ))}
+
+      {/* izlazni konusi ispod cisterne + cijev za istovar */}
+      <polygon points="62,34 86,34 79,45 69,45" fill="#b8961f" stroke="#7c6614" strokeWidth="1" />
+      <polygon points="100,34 124,34 117,45 107,45" fill="#b8961f" stroke="#7c6614" strokeWidth="1" />
+      <rect x="64" y="46.5" width="78" height="3" rx="1.5" fill="#9ca3af" stroke="#4b5563" strokeWidth="0.6" />
+
+      {/* tijelo cisterne */}
+      <rect x="42" y="7" width="102" height="31" rx="15.5" fill={`url(#${tankGrad})`} stroke="#7c6614" strokeWidth="1.5" />
+      <rect x="50" y="11" width="86" height="3" rx="1.5" fill="#fff" opacity="0.5" />
+      {[62, 93, 124].map((px) => (
+        <line key={px} x1={px} y1="7.5" x2={px} y2="37.5" stroke="#8a6f17" strokeWidth="1.2" opacity="0.55" />
+      ))}
+
+      {/* otvori za punjenje (lijevi je ispod cijevi) */}
+      <rect x="67" y="1" width="16" height="7" rx="2" fill="#d1d5db" stroke="#4b5563" strokeWidth="1" />
+      <rect x="104" y="3" width="12" height="5" rx="1.5" fill="#d1d5db" stroke="#4b5563" strokeWidth="1" />
+
+      {/* merdevine pozadi */}
+      <line x1="145.5" y1="9" x2="145.5" y2="45" stroke="#4b5563" strokeWidth="1" />
+      <line x1="149" y1="9" x2="149" y2="45" stroke="#4b5563" strokeWidth="1" />
+      {[14, 21, 28, 35, 42].map((py) => (
+        <line key={py} x1="145.5" y1={py} x2="149" y2={py} stroke="#4b5563" strokeWidth="1" />
+      ))}
+
+      {/* auspuh iza kabine */}
+      <rect x="37" y="0" width="3" height="18" rx="1" fill="#6b7280" />
+
+      {/* kabina */}
+      <path d="M3,45 L3,25 Q3,19 8,17 L20,8 Q23,6 27,6 L39,6 L39,45 Z" fill={`url(#${cabGrad})`} stroke="#1f2937" strokeWidth="1" />
+      <polygon points="8,21 20,11 26,11 26,21" fill="#bcdbe6" stroke="#1f2937" strokeWidth="0.6" />
+      <rect x="28.5" y="11" width="8" height="10" rx="1" fill="#bcdbe6" stroke="#1f2937" strokeWidth="0.6" />
+      <line x1="27.5" y1="22" x2="27.5" y2="42" stroke="#1f2937" strokeWidth="0.8" />
+      <rect x="31" y="26" width="4" height="1.6" rx="0.8" fill="#d1d5db" />
+      {[27, 30, 33].map((py) => (
+        <line key={py} x1="4" y1={py} x2="9" y2={py} stroke="#9ca3af" strokeWidth="1" />
+      ))}
+      <rect x="3.5" y="35" width="4" height="3.5" rx="1" fill="#fde68a" stroke="#b45309" strokeWidth="0.5" />
+      <rect x="1" y="40" width="11" height="5" rx="1.5" fill="#9ca3af" stroke="#4b5563" strokeWidth="0.6" />
+      <line x1="8" y1="18" x2="5" y2="15" stroke="#1f2937" strokeWidth="1" />
+      <rect x="2.5" y="11" width="3" height="6" rx="1" fill="#374151" />
+
+      {/* blatobran iza zadnjeg točka */}
+      <rect x="141" y="47" width="3" height="13" rx="1" fill="#1f2937" />
+
+      {/* točkovi */}
+      {wheels.map((cx) => (
+        <g key={cx}>
+          <circle cx={cx} cy="56" r="9" fill="#1f2937" />
+          <circle cx={cx} cy="56" r="5.5" fill="#9ca3af" stroke="#4b5563" strokeWidth="0.8" />
+          <circle cx={cx} cy="56" r="1.8" fill="#4b5563" />
+        </g>
+      ))}
     </g>
   );
+}
+
+// Indikator dostupnosti iznad kamiona - lijevi silos lijevo od uspravne
+// cijevi, desni desno od nje, da cijev ne prelazi preko teksta.
+const CHIP_H = 26;
+const CHIP_GAP = 10; // razmak od ose cijevi do chipa
+
+function chipWidth(text) {
+  return 34 + text.length * 7.6;
+}
+
+function SiloChip({ x, y, silo, availability, anchor }) {
+  const text = `${silo.code} ${availability.label}`;
+  const w = chipWidth(text);
+  const left = anchor === "end" ? x - w : x;
+  return (
+    <g transform={`translate(${left}, ${y})`}>
+      <rect width={w} height={CHIP_H} rx={CHIP_H / 2} fill={availability.bg} stroke={availability.color} strokeWidth="1.5" />
+      <circle cx="14" cy={CHIP_H / 2} r="5" fill={availability.color} />
+      <text x="25" y={CHIP_H / 2 + 4.5} fontSize="13" fontWeight="700" fill={availability.text}>
+        {text}
+      </text>
+    </g>
+  );
+}
+
+// Na telefonu se scena smanjuje (viewBox), pa bi SVG chipovi bili sitni -
+// tu se sakrivaju i umjesto njih ispod scene ide HTML AvailabilityPills.
+function SiloChips({ cx, y, leftSilo, rightSilo, statsBySiloId, status }) {
+  return (
+    <g className="hidden sm:inline">
+      <SiloChip
+        x={cx - CHIP_GAP}
+        y={y}
+        silo={leftSilo}
+        availability={siloAvailability(leftSilo, statsBySiloId[leftSilo.id], status)}
+        anchor="end"
+      />
+      <SiloChip
+        x={cx + CHIP_GAP}
+        y={y}
+        silo={rightSilo}
+        availability={siloAvailability(rightSilo, statsBySiloId[rightSilo.id], status)}
+        anchor="start"
+      />
+    </g>
+  );
+}
+
+// Svaka rinfuza je u svojoj kartici (okvir + blaga pozadina) da se jasno
+// odvoji od susjednih.
+const SCENE_CARD = "rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4";
+
+// Naziv rinfuze kao naslov iznad scene (HTML, čitljiv i kad se SVG smanji).
+function SceneTitle({ label }) {
+  return <div className="mb-2 text-center text-lg font-bold text-gray-900">{label}</div>;
 }
 
 function SiloVisual({ silo, cx, stats, ok, hasData }) {
@@ -321,6 +508,7 @@ function SiloVisual({ silo, cx, stats, ok, hasData }) {
       <text x={w / 2} y="54" textAnchor="middle" fontSize="18" fontWeight="900" fill="#111827">
         {hasData ? `${Math.round(pct * 100)}%` : "—"}
       </text>
+      <MeasuredAt x={w / 2} y={72} recordedAt={stats?.recordedAt} />
 
       {/* Tonaža - u donjoj vizuelnoj četvrtini silosa (80% visine), uvećano
           polje; pozicija je na 80% (ne dublje) da polje ostane unutar pune
@@ -338,18 +526,20 @@ function SiloVisual({ silo, cx, stats, ok, hasData }) {
 // raspoređuje u dva mala hoppera, odakle slobodnim padom ide u cisternu.
 // Silosi su namjerno jedan pored drugog (desno), hopperi+kamion su lijevo -
 // korisnikova tačna referentna skica.
-const HOPPER_W = 640;
-const HOPPER_H = 430;
-const HOPPER_SILO_LEFT_CX = 400;
-const HOPPER_SILO_RIGHT_CX = 540;
+// Hopperi+kamion su pomaknuti udesno (a silosi+dizalica još više), da
+// chipovi dostupnosti iznad kamiona stanu između ivice i dizalice.
+const HOPPER_W = 680;
+const HOPPER_H = 386;
+const HOPPER_SILO_LEFT_CX = 440;
+const HOPPER_SILO_RIGHT_CX = 580;
 const HOPPER_Y_BOTTOM = SILO_BOTTOM + 32;
-const HOPPER_RISER_X = 290;
+const HOPPER_RISER_X = 340;
 const HOPPER_HEADER_Y = 122;
-const HOPPER1_X = 110;
-const HOPPER2_X = 190;
+const HOPPER1_X = 130;
+const HOPPER2_X = 210;
 const HOPPER_TOP_Y = 164;
 const HOPPER_BOTTOM_Y = 234;
-const HOPPER_MERGE_X = 150;
+const HOPPER_MERGE_X = 170;
 const HOPPER_MERGE_Y = 254;
 const HOPPER_STEM_END_Y = 310;
 const HOPPER_TRUCK_Y = 314;
@@ -380,9 +570,15 @@ function HopperScene({ rinfuza, leftSilo, rightSilo, leftStats, rightStats, left
   const stemD = `M ${HOPPER_MERGE_X} ${HOPPER_MERGE_Y} L ${HOPPER_MERGE_X} ${HOPPER_STEM_END_Y}`;
 
   return (
-    <div>
-      <div className="overflow-x-auto">
-        <svg width={HOPPER_W} height={HOPPER_H} viewBox={`0 0 ${HOPPER_W} ${HOPPER_H}`} className="mx-auto">
+    <div className={SCENE_CARD}>
+      <SceneTitle label={rinfuza.label} />
+      <div>
+        <svg
+          width="100%"
+          viewBox={`0 0 ${HOPPER_W} ${HOPPER_H}`}
+          style={{ maxWidth: HOPPER_W, height: "auto" }}
+          className="mx-auto block"
+        >
           <SiloVisual silo={leftSilo} cx={HOPPER_SILO_LEFT_CX} stats={leftStats} ok={leftOk} hasData={leftHasData} />
           <SiloVisual silo={rightSilo} cx={HOPPER_SILO_RIGHT_CX} stats={rightStats} ok={rightOk} hasData={rightHasData} />
 
@@ -408,16 +604,23 @@ function HopperScene({ rinfuza, leftSilo, rightSilo, leftStats, rightStats, left
             strokeWidth="1.2"
           />
 
-          <TankerTruck x={HOPPER_MERGE_X} y={HOPPER_TRUCK_Y} />
-          <text x={HOPPER_MERGE_X} y={HOPPER_TRUCK_Y - 8} textAnchor="middle" fontSize="14" fontWeight="800" fill="#111827">
-            {rinfuza.label}
-          </text>
-          <text x={HOPPER_MERGE_X} y={HOPPER_H - 8} textAnchor="middle" fontSize="12" fontWeight="700" fill={status.ok ? "#059669" : "#dc2626"}>
-            {status.ok ? "✓ AKTIVNA" : "✗ NEDOVOLJNO"}
-          </text>
+          <TankerTruck x={HOPPER_MERGE_X} y={HOPPER_TRUCK_Y} id={rinfuza.code} />
+          <SiloChips
+            cx={HOPPER_MERGE_X}
+            y={HOPPER_TRUCK_Y - CHIP_H - 10}
+            leftSilo={leftSilo}
+            rightSilo={rightSilo}
+            statsBySiloId={{ [leftSilo.id]: leftStats, [rightSilo.id]: rightStats }}
+            status={status}
+          />
         </svg>
       </div>
-      <p className="mt-1 text-center text-[11px] text-gray-400">{RINFUZA_MECHANISM[rinfuza.code]}</p>
+      <AvailabilityPills
+        className="mt-2 flex-row flex-wrap justify-center sm:hidden"
+        silos={[leftSilo, rightSilo]}
+        statsBySiloId={{ [leftSilo.id]: leftStats, [rightSilo.id]: rightStats }}
+        status={status}
+      />
     </div>
   );
 }
@@ -462,9 +665,9 @@ function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
   // R4 (kamion daleko, dug spoj kod dna) vs R1/R2 (Y-spoj je sad gore kod
   // tap-tačke, pa kamion smije biti bliže silosima - kraći canvas).
   let mergeYStart;
-  let stemEndY = STEM_END_Y;
-  let truckY = TRUCK_Y;
-  let canvasH = SCENE_H;
+  let stemEndY;
+  let truckY;
+  let canvasH;
   let siloLeftCx = LEFT_CX;
   let siloRightCx = RIGHT_CX;
 
@@ -500,18 +703,29 @@ function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
     siloRightCx = 310;
     const leftBottom = siloDims(leftSilo).bottom;
     const rightBottom = siloDims(rightSilo).bottom;
-    const stubY = leftBottom + 36;
+    // Kratak uspravni izlaz ispod konusa, pa dijagonala istog nagiba do
+    // Y-spoja; kamion odmah ispod (ostavljeno tačno mjesta za chipove).
+    const stubY = leftBottom + 14;
     const angleRatio = 87 / 145; // isti nagib kao originalna dijagonala
     const horizontal = MERGE_X - siloLeftCx;
     mergeYStart = stubY + horizontal * angleRatio;
+    truckY = Math.round(mergeYStart + 46);
+    stemEndY = truckY - 4;
+    canvasH = truckY + 72;
     leftPipeD = `M ${siloLeftCx} ${leftBottom} L ${siloLeftCx} ${stubY} L ${MERGE_X} ${mergeYStart}`;
     rightPipeD = `M ${siloRightCx} ${rightBottom} L ${siloRightCx} ${stubY} L ${MERGE_X} ${mergeYStart}`;
   }
 
   return (
-    <div>
-      <div className="overflow-x-auto">
-        <svg width={SCENE_W} height={canvasH} viewBox={`0 0 ${SCENE_W} ${canvasH}`} className="mx-auto">
+    <div className={SCENE_CARD}>
+      <SceneTitle label={rinfuza.label} />
+      <div>
+        <svg
+          width="100%"
+          viewBox={`0 0 ${SCENE_W} ${canvasH}`}
+          style={{ maxWidth: SCENE_W, height: "auto" }}
+          className="mx-auto block"
+        >
           <SiloVisual silo={leftSilo} cx={siloLeftCx} stats={leftStats} ok={leftOk} hasData={leftHasData} />
           <SiloVisual silo={rightSilo} cx={siloRightCx} stats={rightStats} ok={rightOk} hasData={rightHasData} />
 
@@ -520,23 +734,30 @@ function RinfuzaScene({ rinfuza, leftSilo, rightSilo, statsBySiloId }) {
           <path d={`M ${MERGE_X} ${mergeYStart} L ${MERGE_X} ${stemEndY}`} stroke={stemColor} strokeWidth="7" fill="none" strokeLinecap="round" />
           {extra}
 
-          <TankerTruck x={MERGE_X} y={truckY} />
-          <text x={MERGE_X} y={truckY - 8} textAnchor="middle" fontSize="14" fontWeight="800" fill="#111827">
-            {rinfuza.label}
-          </text>
-          <text x={MERGE_X} y={canvasH - 8} textAnchor="middle" fontSize="12" fontWeight="700" fill={status.ok ? "#059669" : "#dc2626"}>
-            {status.ok ? "✓ AKTIVNA" : "✗ NEDOVOLJNO"}
-          </text>
+          <TankerTruck x={MERGE_X} y={truckY} id={rinfuza.code} />
+          <SiloChips
+            cx={MERGE_X}
+            y={truckY - CHIP_H - 10}
+            leftSilo={leftSilo}
+            rightSilo={rightSilo}
+            statsBySiloId={statsBySiloId}
+            status={status}
+          />
         </svg>
       </div>
-      <p className="mt-1 text-center text-[11px] text-gray-400">{RINFUZA_MECHANISM[rinfuza.code]}</p>
+      <AvailabilityPills
+        className="mt-2 flex-row flex-wrap justify-center sm:hidden"
+        silos={[leftSilo, rightSilo]}
+        statsBySiloId={statsBySiloId}
+        status={status}
+      />
     </div>
   );
 }
 
 function AllSilosRow({ silos, statsBySiloId, readingsBySiloId, canEdit, onSubmit, savingCode }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:p-6">
+    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-6">
       <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
         Svi silosi
       </div>
@@ -557,49 +778,47 @@ function AllSilosRow({ silos, statsBySiloId, readingsBySiloId, canEdit, onSubmit
   );
 }
 
-// Kompaktna, ne-ilustrovana kartica - koristi je samo mill_operator ekran
-// (RinfuzaRow), gdje je bitna brzina pregleda, ne vizuelni mehanizam.
-function RinfuzaCard({ rinfuza, sourceSilos, status }) {
+// HTML verzija indikatora dostupnosti (kartica radnika na mlinu + ispod
+// scene na telefonu, gdje su SVG chipovi presitni).
+function AvailabilityPills({ silos, statsBySiloId, status, className = "" }) {
   return (
-    <div
-      className={`w-48 shrink-0 rounded-2xl border p-3 ${
-        status.ok ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"
-      }`}
-    >
-      <div className="flex items-center justify-between">
-        <span className="font-bold text-gray-900">{rinfuza.label}</span>
-        <span
-          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
-            status.ok ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
-          }`}
-        >
-          {status.ok ? "✓ AKTIVNA" : "✗ NEDOVOLJNO"}
-        </span>
-      </div>
-      <div className="mt-2 flex flex-wrap gap-1">
-        {sourceSilos.map((s) => (
+    <div className={`flex gap-1.5 ${className}`}>
+      {silos.map((s) => {
+        const a = siloAvailability(s, statsBySiloId[s.id], status);
+        return (
           <span
             key={s.id}
-            className={`rounded-md border px-1.5 py-0.5 font-mono text-[11px] ${
-              status.contributingIds.includes(s.id)
-                ? "border-emerald-300 text-emerald-700"
-                : "border-gray-300 text-gray-500"
-            }`}
+            className="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-sm font-semibold"
+            style={{ borderColor: a.color, backgroundColor: a.bg, color: a.text }}
           >
-            {s.code}
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: a.color }} />
+            {s.code} {a.label}
           </span>
-        ))}
-      </div>
-      <div className="mt-2 text-[11px] leading-snug text-gray-500">
-        {RINFUZA_MECHANISM[rinfuza.code]}
-      </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Kompaktna, ne-ilustrovana kartica - koristi je samo mill_operator ekran
+// (RinfuzaRow), gdje je bitna brzina pregleda, ne vizuelni mehanizam.
+function RinfuzaCard({ rinfuza, sourceSilos, status, statsBySiloId }) {
+  return (
+    <div className="w-full shrink-0 rounded-2xl border border-gray-200 bg-white p-3 sm:w-56">
+      <div className="font-bold text-gray-900">{rinfuza.label}</div>
+      <AvailabilityPills
+        className="mt-2 flex-row flex-wrap sm:flex-col"
+        silos={sourceSilos}
+        statsBySiloId={statsBySiloId}
+        status={status}
+      />
     </div>
   );
 }
 
 function RinfuzaRow({ rinfuzeList, silosByCode, statsBySiloId }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:p-6">
+    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-6">
       <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
         Status rinfuza
       </div>
@@ -614,6 +833,7 @@ function RinfuzaRow({ rinfuzeList, silosByCode, statsBySiloId }) {
               rinfuza={rinfuza}
               sourceSilos={sourceSilos}
               status={computeRinfuzaStatus(rinfuza, sourceSilos, statsBySiloId)}
+              statsBySiloId={statsBySiloId}
             />
           );
         })}
@@ -672,7 +892,8 @@ export default function SiloStockDashboard({ user, canEdit = false, hideTopBorde
   const statsBySiloId = {};
   for (const silo of silos) {
     const last = readingsBySiloId[silo.id];
-    statsBySiloId[silo.id] = last ? computeSiloStats(silo, Number(last.avg_empty_m)) : null;
+    const stats = last ? computeSiloStats(silo, Number(last.avg_empty_m)) : null;
+    statsBySiloId[silo.id] = stats ? { ...stats, recordedAt: last.recorded_at } : null;
   }
 
   const handleSubmitReading = async (silo, p1, p2) => {
@@ -731,12 +952,6 @@ export default function SiloStockDashboard({ user, canEdit = false, hideTopBorde
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-        <span>✓ zeleno — rinfuza radi</span>
-        <span>✗ crveno — nedovoljno cementa</span>
-        <span>Zadržite kursor preko silosa za zadnje mjerenje</span>
-      </div>
-
       {canEdit ? (
         // Radniku na mlinu je bitno da unese sve silose brzo, bez skrolanja
         // kroz grupe po dva - svi silosi su u jednom redu, a status rinfuza
@@ -772,13 +987,6 @@ export default function SiloStockDashboard({ user, canEdit = false, hideTopBorde
           })}
         </div>
       )}
-
-      <p className="mt-4 text-xs text-gray-400">
-        Mjerenje = prazan prostor od vrha silosa do površine cementa, u
-        metrima. S1–S4: prosjek dvije tačke. S5–S6: jedna tačka, donjih 5 m je
-        konusno dno s posebnom konstantom tona/metar.
-        {!canEdit && " Unos je dozvoljen samo radniku na mlinu cementa."}
-      </p>
     </div>
   );
 }
