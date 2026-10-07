@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import uniqueId from "../utils/uniqueId";
 
 const STATUS_ORDER = {
   awaiting_approval: 0,
@@ -156,15 +157,31 @@ export default function AnnouncementsList({
   }, [role, currentUser?.id, refreshKey]);
 
   // Operater ne moze dobiti realtime obavijest o novoj "awaiting_approval"
-  // najavi (RLS je skriva i od Realtime-a), pa se povremeno ponovo ucitava
-  // lista da bi se novododati stub redovi pojavili i bez rucnog osvjezavanja.
+  // najavi (RLS je skriva i od Realtime-a), pa slusa announcement_pending_signals
+  // (trigger upise samo id) i odmah ponovo ucita listu. Polling ostaje kao
+  // rezerva ako Realtime veza pukne.
   useEffect(() => {
     if (role !== "wb_operator") return;
+    const channel = supabase
+      .channel(`operator-pending-signals-${uniqueId()}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "announcement_pending_signals",
+        },
+        () => fetchAnnouncements({ silent: true }),
+      )
+      .subscribe();
     const intervalId = window.setInterval(
       () => fetchAnnouncements({ silent: true }),
-      20000,
+      60000,
     );
-    return () => window.clearInterval(intervalId);
+    return () => {
+      supabase.removeChannel(channel);
+      window.clearInterval(intervalId);
+    };
   }, [role, currentUser?.id]);
 
   useEffect(() => {
