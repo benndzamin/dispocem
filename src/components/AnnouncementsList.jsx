@@ -629,44 +629,46 @@ export default function AnnouncementsList({
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="relative w-full sm:w-64">
-            <input
-              type="text"
-              placeholder="Pretraži najave (firma, cement, vozač...)..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
-            />
-          </div>
-          <div className="relative inline-flex">
-            <button
-              type="button"
-              onClick={openFilterModal}
-              className={`whitespace-nowrap rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                activeFilterCount > 0
-                  ? "border-brand-red bg-red-50 text-brand-red"
-                  : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              🔎 Filtriraj
-            </button>
-            {activeFilterCount > 0 && (
+          <div className="flex items-center gap-2">
+            <div className="relative min-w-0 flex-1 sm:w-64 sm:flex-none">
+              <input
+                type="text"
+                placeholder="Pretraži najave (firma, cement, vozač...)..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+              />
+            </div>
+            <div className="relative inline-flex shrink-0">
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  resetFilters();
-                }}
-                aria-label="Resetuj filtere"
-                title="Resetuj filtere"
-                className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand-red text-xs font-bold text-white shadow hover:bg-brand-red-dark"
+                onClick={openFilterModal}
+                className={`whitespace-nowrap rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                  activeFilterCount > 0
+                    ? "border-brand-red bg-red-50 text-brand-red"
+                    : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                }`}
               >
-                ×
+                🔎 Filtriraj
               </button>
-            )}
+              {activeFilterCount > 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    resetFilters();
+                  }}
+                  aria-label="Resetuj filtere"
+                  title="Resetuj filtere"
+                  className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand-red text-xs font-bold text-white shadow hover:bg-brand-red-dark"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2 md:hidden">
             <select
