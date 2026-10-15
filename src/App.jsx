@@ -7,6 +7,7 @@ import KupacDashboard from "./components/KupacDashboard";
 import VagaSupervisor from "./components/VagaSupervisor";
 import VagaOperator from "./components/VagaOperator";
 import MillOperatorDashboard from "./components/MillOperatorDashboard";
+import SiloStockDashboard from "./components/SiloStockDashboard";
 import UserBadge from "./components/UserBadge";
 import PushSubscribeButton from "./components/PushSubscribeButton";
 
@@ -138,6 +139,10 @@ export default function App() {
 
         {userRole === "mill_operator" && (
           <MillOperatorDashboard user={session?.user} />
+        )}
+
+        {userRole === "silo_viewer" && (
+          <SiloStockDashboard user={session?.user} canEdit={false} />
         )}
 
         {userRole === "buyer" && (

@@ -222,279 +222,290 @@ export default function BuyerManagement({
   return (
     <>
       {isActiveTab && (
-      <div
-      className={`bg-white border-gray-200 p-3 sm:p-6 ${
-        hideTopBorder ? "border-x border-b rounded-b-xl" : "border rounded-xl"
-      }`}
-    >
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h3 className="text-lg font-bold text-gray-900 mb-2">
-            👥 Upravljanje kupcima
-          </h3>
-          <p className="text-sm text-gray-500">
-            Supervisor može dodavati i uređivati kupce, te mijenjati njihove
-            dozvole i zahtjeve za najave.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="relative w-full sm:w-64">
-            <input
-              type="text"
-              placeholder="Pretraži kupce po nazivu firme..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
-            />
+        <div
+          className={`bg-white border-gray-200 p-3 sm:p-6 ${
+            hideTopBorder
+              ? "border-x border-b rounded-b-xl"
+              : "border rounded-xl"
+          }`}
+        >
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                👥 Upravljanje kupcima
+              </h3>
+              <p className="text-sm text-gray-500">
+                Supervisor može dodavati i uređivati kupce, te mijenjati njihove
+                dozvole i zahtjeve za najave.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="relative w-full sm:w-64">
+                <input
+                  type="text"
+                  placeholder="Pretraži kupce po nazivu firme..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => openBuyerModal()}
+                className="rounded-lg bg-brand-red hover:bg-brand-red-dark text-white px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap"
+              >
+                ➕ Dodaj novog kupca
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => openBuyerModal()}
-            className="rounded-lg bg-brand-red hover:bg-brand-red-dark text-white px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap"
-          >
-            ➕ Dodaj novog kupca
-          </button>
-        </div>
-      </div>
 
-      {/* Buyer List */}
+          {/* Buyer List */}
 
-      {loading ? (
-        <p className="text-gray-500">Učitavanje kupaca...</p>
-      ) : buyers.length === 0 ? (
-        <p className="text-gray-500">Nema registrovanih kupaca.</p>
-      ) : filteredBuyers.length === 0 ? (
-        <p className="text-gray-500">Nema kupaca koji odgovaraju pretrazi.</p>
-      ) : (
-        <>
-          <div className="hidden overflow-x-auto border-t border-gray-200 md:block">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-gray-100 text-xs uppercase tracking-wide text-gray-600">
-                <tr>
-                  <th
-                    scope="col"
-                    className="border-b border-gray-200 px-4 py-3 font-semibold"
-                  >
-                    Firma
-                  </th>
-                  <th
-                    scope="col"
-                    className="border-b border-gray-200 px-4 py-3 font-semibold"
-                  >
-                    Email
-                  </th>
-                  <th
-                    scope="col"
-                    className="border-b border-gray-200 px-4 py-3 font-semibold"
-                  >
-                    Dozvoljeni artikli
-                  </th>
-                  <th
-                    scope="col"
-                    className="border-b border-gray-200 px-4 py-3 font-semibold whitespace-nowrap"
-                  >
-                    Obavezna najava
-                  </th>
-                  <th
-                    scope="col"
-                    className="border-b border-gray-200 px-4 py-3 font-semibold whitespace-nowrap"
-                  >
-                    Zahtijeva odobrenje
-                  </th>
-                  <th
-                    scope="col"
-                    className="relative border-b border-gray-200 px-4 py-3"
-                  >
-                    <span className="sr-only">Uredi</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white text-gray-700">
+          {loading ? (
+            <p className="text-gray-500">Učitavanje kupaca...</p>
+          ) : buyers.length === 0 ? (
+            <p className="text-gray-500">Nema registrovanih kupaca.</p>
+          ) : filteredBuyers.length === 0 ? (
+            <p className="text-gray-500">
+              Nema kupaca koji odgovaraju pretrazi.
+            </p>
+          ) : (
+            <>
+              <div className="hidden overflow-x-auto border-t border-gray-200 md:block">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-gray-100 text-xs uppercase tracking-wide text-gray-600">
+                    <tr>
+                      <th
+                        scope="col"
+                        className="border-b border-gray-200 px-4 py-3 font-semibold"
+                      >
+                        Firma
+                      </th>
+                      <th
+                        scope="col"
+                        className="border-b border-gray-200 px-4 py-3 font-semibold"
+                      >
+                        Email
+                      </th>
+                      <th
+                        scope="col"
+                        className="border-b border-gray-200 px-4 py-3 font-semibold"
+                      >
+                        Dozvoljeni artikli
+                      </th>
+                      <th
+                        scope="col"
+                        className="border-b border-gray-200 px-4 py-3 text-center font-semibold whitespace-nowrap"
+                      >
+                        Obavezna najava
+                      </th>
+                      <th
+                        scope="col"
+                        className="border-b border-gray-200 px-4 py-3 text-center font-semibold whitespace-nowrap"
+                      >
+                        Obavezna provjera uplata
+                      </th>
+                      <th
+                        scope="col"
+                        className="relative border-b border-gray-200 px-4 py-3"
+                      >
+                        <span className="sr-only">Uredi</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white text-gray-700">
+                    {paginatedBuyers.map((buyer) => (
+                      <tr
+                        key={buyer.id}
+                        className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50"
+                      >
+                        <td className="px-4 py-3 font-semibold text-gray-900">
+                          {buyer.naziv_firme}
+                        </td>
+                        <td className="px-4 py-3">{buyer.email}</td>
+                        <td className="px-4 py-3">
+                          {buyer.dozvoljeni_artikli &&
+                          buyer.dozvoljeni_artikli.length > 0
+                            ? buyer.dozvoljeni_artikli.map((artikal) => (
+                                <div key={artikal} className="whitespace-nowrap">
+                                  {artikal}
+                                </div>
+                              ))
+                            : "Nijedan"}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={buyer.announcement_required}
+                            disabled
+                            className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red disabled:cursor-not-allowed disabled:opacity-70"
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={buyer.approval_required}
+                            disabled
+                            className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red disabled:cursor-not-allowed disabled:opacity-70"
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleEditClick(buyer)}
+                            className="whitespace-nowrap rounded-lg bg-brand-red hover:bg-brand-red-dark text-white px-3 py-2 text-xs font-medium transition-colors"
+                          >
+                            Uredi
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="space-y-3 md:hidden">
                 {paginatedBuyers.map((buyer) => (
-                  <tr
+                  <div
                     key={buyer.id}
-                    className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50"
+                    className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4"
                   >
-                    <td className="px-4 py-3 font-semibold text-gray-900">
-                      {buyer.naziv_firme}
-                    </td>
-                    <td className="px-4 py-3">{buyer.email}</td>
-                    <td className="px-4 py-3">
-                      {buyer.dozvoljeni_artikli &&
-                      buyer.dozvoljeni_artikli.length > 0
-                        ? buyer.dozvoljeni_artikli.join(", ")
-                        : "Nijedan"}
-                    </td>
-                    <td className="px-4 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="font-semibold text-gray-900">
+                        {buyer.naziv_firme}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleEditClick(buyer)}
+                        className="shrink-0 whitespace-nowrap rounded-lg bg-brand-red hover:bg-brand-red-dark text-white px-3 py-2 text-xs font-medium transition-colors"
+                      >
+                        Uredi
+                      </button>
+                    </div>
+                    <div className="mt-2 text-sm text-gray-600">
+                      {buyer.email}
+                    </div>
+                    <div className="mt-3 text-sm">
+                      <div className="text-xs uppercase text-gray-400">
+                        Dozvoljeni artikli
+                      </div>
+                      <div className="text-gray-700">
+                        {buyer.dozvoljeni_artikli &&
+                        buyer.dozvoljeni_artikli.length > 0
+                          ? buyer.dozvoljeni_artikli.join(", ")
+                          : "Nijedan"}
+                      </div>
+                    </div>
+                    <label className="mt-3 flex items-center gap-2 text-sm text-gray-700">
                       <input
                         type="checkbox"
                         checked={buyer.announcement_required}
                         disabled
                         className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red disabled:cursor-not-allowed disabled:opacity-70"
                       />
-                    </td>
-                    <td className="px-4 py-3">
+                      Za ovog kupca obavezna je prethodna najava.
+                    </label>
+                    <label className="mt-2 flex items-center gap-2 text-sm text-gray-700">
                       <input
                         type="checkbox"
                         checked={buyer.approval_required}
                         disabled
                         className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red disabled:cursor-not-allowed disabled:opacity-70"
                       />
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleEditClick(buyer)}
-                        className="whitespace-nowrap rounded-lg bg-brand-red hover:bg-brand-red-dark text-white px-3 py-2 text-xs font-medium transition-colors"
-                      >
-                        Uredi
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="space-y-3 md:hidden">
-            {paginatedBuyers.map((buyer) => (
-              <div
-                key={buyer.id}
-                className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="font-semibold text-gray-900">
-                    {buyer.naziv_firme}
+                      Za ovog kupca obavezno je provjeravanje uplata prije
+                      odobrenja najave za utovar.
+                    </label>
                   </div>
+                ))}
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <span>
+                    Prikazano {rangeStart}-{rangeEnd} od {filteredBuyers.length}{" "}
+                    kupaca
+                  </span>
+                  <label className="ml-4 flex items-center gap-2">
+                    <span className="text-xs uppercase text-gray-500 font-semibold">
+                      Po stranici
+                    </span>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => {
+                        setPageSize(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => handleEditClick(buyer)}
-                    className="shrink-0 whitespace-nowrap rounded-lg bg-brand-red hover:bg-brand-red-dark text-white px-3 py-2 text-xs font-medium transition-colors"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-white"
                   >
-                    Uredi
+                    Prethodna
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(
+                      (page) =>
+                        page === 1 ||
+                        page === totalPages ||
+                        Math.abs(page - currentPage) <= 1,
+                    )
+                    .reduce((acc, page, idx, arr) => {
+                      if (idx > 0 && page - arr[idx - 1] > 1) acc.push("...");
+                      acc.push(page);
+                      return acc;
+                    }, [])
+                    .map((page, idx) =>
+                      page === "..." ? (
+                        <span
+                          key={`ellipsis-${idx}`}
+                          className="px-2 text-sm text-gray-400"
+                        >
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={page}
+                          type="button"
+                          onClick={() => setCurrentPage(page)}
+                          className={`rounded-lg border px-3 py-1.5 text-sm ${
+                            page === currentPage
+                              ? "border-brand-red bg-brand-red text-white"
+                              : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ),
+                    )}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-white"
+                  >
+                    Sljedeća
                   </button>
                 </div>
-                <div className="mt-2 text-sm text-gray-600">{buyer.email}</div>
-                <div className="mt-3 text-sm">
-                  <div className="text-xs uppercase text-gray-400">
-                    Dozvoljeni artikli
-                  </div>
-                  <div className="text-gray-700">
-                    {buyer.dozvoljeni_artikli &&
-                    buyer.dozvoljeni_artikli.length > 0
-                      ? buyer.dozvoljeni_artikli.join(", ")
-                      : "Nijedan"}
-                  </div>
-                </div>
-                <label className="mt-3 flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={buyer.announcement_required}
-                    disabled
-                    className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red disabled:cursor-not-allowed disabled:opacity-70"
-                  />
-                  Za utovar ovog kupca obavezna je prethodna najava.
-                </label>
-                <label className="mt-2 flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={buyer.approval_required}
-                    disabled
-                    className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red disabled:cursor-not-allowed disabled:opacity-70"
-                  />
-                  Za ovog kupca obavezno je odobrenje najave za utovar.
-                </label>
               </div>
-            ))}
-          </div>
-
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span>
-                Prikazano {rangeStart}-{rangeEnd} od {filteredBuyers.length}{" "}
-                kupaca
-              </span>
-              <label className="ml-4 flex items-center gap-2">
-                <span className="text-xs uppercase text-gray-500 font-semibold">
-                  Po stranici
-                </span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-white"
-              >
-                Prethodna
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter(
-                  (page) =>
-                    page === 1 ||
-                    page === totalPages ||
-                    Math.abs(page - currentPage) <= 1,
-                )
-                .reduce((acc, page, idx, arr) => {
-                  if (idx > 0 && page - arr[idx - 1] > 1) acc.push("...");
-                  acc.push(page);
-                  return acc;
-                }, [])
-                .map((page, idx) =>
-                  page === "..." ? (
-                    <span
-                      key={`ellipsis-${idx}`}
-                      className="px-2 text-sm text-gray-400"
-                    >
-                      …
-                    </span>
-                  ) : (
-                    <button
-                      key={page}
-                      type="button"
-                      onClick={() => setCurrentPage(page)}
-                      className={`rounded-lg border px-3 py-1.5 text-sm ${
-                        page === currentPage
-                          ? "border-brand-red bg-brand-red text-white"
-                          : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ),
-                )}
-              <button
-                type="button"
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
-                disabled={currentPage === totalPages}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-white"
-              >
-                Sljedeća
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-      </div>
+            </>
+          )}
+        </div>
       )}
 
       {isModalOpen && (
@@ -612,7 +623,7 @@ export default function BuyerManagement({
                   className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red"
                 />
                 <label className="text-xs uppercase text-gray-500 font-semibold">
-                  Za utovar ovog kupca obavezna je prethodna najava.
+                  Za ovog kupca obavezna je prethodna najava.
                 </label>
               </div>
 
@@ -624,7 +635,8 @@ export default function BuyerManagement({
                   className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red"
                 />
                 <label className="text-xs uppercase text-gray-500 font-semibold">
-                  Za ovog kupca obavezno je odobrenje najave za utovar.
+                  Za ovog kupca obavezno je provjeravanje uplata prije odobrenja
+                  najave za utovar.
                 </label>
               </div>
 

@@ -5,12 +5,14 @@ const ROLE_LABELS = {
   wb_supervisor: "Supervizor vage",
   wb_operator: "Operater vage",
   mill_operator: "Radnik na mlinu cementa",
+  silo_viewer: "Pregled raspoloživog cementa",
 };
 
 const ROLE_OPTIONS = [
   { value: "wb_supervisor", label: ROLE_LABELS.wb_supervisor },
   { value: "wb_operator", label: ROLE_LABELS.wb_operator },
   { value: "mill_operator", label: ROLE_LABELS.mill_operator },
+  { value: "silo_viewer", label: ROLE_LABELS.silo_viewer },
 ];
 
 export default function StaffManagement({
@@ -49,7 +51,7 @@ export default function StaffManagement({
     const { data, error } = await supabase
       .from("users")
       .select("*")
-      .in("rola", ["wb_supervisor", "wb_operator", "mill_operator"])
+      .in("rola", Object.keys(ROLE_LABELS))
       .order("created_at", { ascending: false });
     setLoading(false);
     if (!error) {

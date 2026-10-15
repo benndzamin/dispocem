@@ -21,6 +21,10 @@ const ROLE_DETAILS = {
     title: "Rukovodilac mlina cementa",
     desc: "Unosi mjere silosa.",
   },
+  silo_viewer: {
+    title: "Pregled cementa",
+    desc: "Vidi stanje raspoloživog cementa po silosima i rinfuzama.",
+  },
 };
 
 export default function UserBadge({ user, userProfile }) {
