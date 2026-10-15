@@ -36,3 +36,20 @@
 .animate-flash-approved {
   animation: flash-approved 1.8s ease-in-out 1;
 }
+
+/* Badge na tabu (npr. Odobrenja) kad stigne nova stavka - 3 blinka. */
+@keyframes badge-blink {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.15;
+    transform: scale(1.35);
+  }
+}
+
+.animate-badge-blink {
+  animation: badge-blink 0.5s ease-in-out 3;
+}

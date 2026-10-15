@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import uniqueId from "../utils/uniqueId";
 
+// Vraća null dok prvi fetch ne završi, da DashboardTabs može razlikovati
+// početno učitavanje od stvarno pristigle nove najave (blink badge-a).
 export default function usePendingApprovalsCount() {
-  const [count, setCount] = useState(0);
+  const [count, setCount] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -25,7 +27,7 @@ export default function usePendingApprovalsCount() {
         { event: "INSERT", schema: "public", table: "announcements" },
         (payload) => {
           if (payload.new?.status === "awaiting_approval") {
-            setCount((c) => c + 1);
+            setCount((c) => (c ?? 0) + 1);
           }
         },
       )
@@ -35,8 +37,9 @@ export default function usePendingApprovalsCount() {
         (payload) => {
           const wasAwaiting = payload.old?.status === "awaiting_approval";
           const isAwaiting = payload.new?.status === "awaiting_approval";
-          if (wasAwaiting && !isAwaiting) setCount((c) => Math.max(0, c - 1));
-          else if (!wasAwaiting && isAwaiting) setCount((c) => c + 1);
+          if (wasAwaiting && !isAwaiting)
+            setCount((c) => Math.max(0, (c ?? 0) - 1));
+          else if (!wasAwaiting && isAwaiting) setCount((c) => (c ?? 0) + 1);
         },
       )
       .on(
@@ -44,7 +47,7 @@ export default function usePendingApprovalsCount() {
         { event: "DELETE", schema: "public", table: "announcements" },
         (payload) => {
           if (payload.old?.status === "awaiting_approval") {
-            setCount((c) => Math.max(0, c - 1));
+            setCount((c) => Math.max(0, (c ?? 0) - 1));
           }
         },
       )

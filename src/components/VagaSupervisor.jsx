@@ -44,7 +44,8 @@ export default function VagaSupervisor({ user }) {
     alerts: newAnnouncementAlerts,
     dismiss: dismissNewAnnouncementAlert,
   } = useNewAnnouncementAlerts(user?.id, "wb_supervisor");
-  const pendingApprovalsCount = usePendingApprovalsCount();
+  const pendingApprovalsCountRaw = usePendingApprovalsCount();
+  const pendingApprovalsCount = pendingApprovalsCountRaw ?? 0;
 
   useEffect(() => {
     const fetchSupervisorStats = async () => {
@@ -186,7 +187,7 @@ export default function VagaSupervisor({ user }) {
             tabs={tabs}
             activeTab={activeTab}
             onChange={setActiveTab}
-            badges={{ approvals: pendingApprovalsCount }}
+            badges={{ approvals: pendingApprovalsCountRaw }}
           />
         </div>
 

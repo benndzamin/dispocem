@@ -2,7 +2,29 @@
 // Na mobilnom su tabovi u dva reda da bi se tekst vidio cijeli - red sa
 // aktivnim tabom je uvijek donji, spojen sa sadržajem (kao klasični Windows
 // tabovi u dva reda). Na desktopu ostaje jedan red.
+import { useEffect, useRef, useState } from "react";
+
 export default function DashboardTabs({ tabs, activeTab, onChange, badges = {} }) {
+  // Kad broj na badge-u poraste (npr. stigla nova najava za odobrenje),
+  // badge zablinka 3x. Promjena blinkKey-a remount-uje span i restartuje
+  // animaciju. Prelaz sa null (još se učitava) na prvi broj ne blinka.
+  const prevBadgesRef = useRef(badges);
+  const [blinkKeys, setBlinkKeys] = useState({});
+
+  useEffect(() => {
+    const prev = prevBadgesRef.current;
+    const increased = Object.keys(badges).filter(
+      (key) => typeof prev[key] === "number" && badges[key] > prev[key],
+    );
+    prevBadgesRef.current = badges;
+    if (increased.length === 0) return;
+    setBlinkKeys((current) => {
+      const next = { ...current };
+      for (const key of increased) next[key] = (next[key] || 0) + 1;
+      return next;
+    });
+  }, [badges]);
+
   const half = Math.ceil(tabs.length / 2);
   const rows = [tabs.slice(0, half), tabs.slice(half)];
   const activeRowIndex = rows[0].some((tab) => tab.key === activeTab) ? 0 : 1;
@@ -12,8 +34,14 @@ export default function DashboardTabs({ tabs, activeTab, onChange, badges = {} }
   const renderBadge = (tab) => {
     const count = badges[tab.key];
     if (!count) return null;
+    const blinkKey = blinkKeys[tab.key] || 0;
     return (
-      <span className="absolute -top-1.5 -right-1.5 z-20 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-red px-1 text-[11px] font-semibold text-white overflow-hidden">
+      <span
+        key={blinkKey}
+        className={`absolute -top-1.5 -right-1.5 z-20 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-red px-1 text-[11px] font-semibold text-white overflow-hidden ${
+          blinkKey ? "animate-badge-blink" : ""
+        }`}
+      >
         {count > 99 ? "99+" : count}
       </span>
     );
