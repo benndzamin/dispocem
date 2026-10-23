@@ -10,12 +10,14 @@ import MillOperatorDashboard from "./components/MillOperatorDashboard";
 import UserBadge from "./components/UserBadge";
 import PushSubscribeButton from "./components/PushSubscribeButton";
 import ChangePasswordButton from "./components/ChangePasswordButton";
+import useStaffPresence from "./hooks/useStaffPresence";
 
 export default function App() {
   const [session, setSession] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  useStaffPresence(session, userProfile);
 
   useEffect(() => {
     // 1. Provjeri trenutnu sesiju pri pokretanju

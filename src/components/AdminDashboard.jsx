@@ -5,6 +5,7 @@ import BuyerManagement from "./BuyerManagement";
 import AnnouncementsList from "./AnnouncementsList";
 import StaffManagement from "./StaffManagement";
 import StaffNotification from "./StaffNotification";
+import StaffActivity from "./StaffActivity";
 import SiloStockDashboard from "./SiloStockDashboard";
 import DashboardTabs from "./DashboardTabs";
 
@@ -16,6 +17,7 @@ const tabs = [
   { key: "announcements", label: "Najave", mobileLabel: "Najave" },
   { key: "staff", label: "Osoblje", mobileLabel: "Osoblje" },
   { key: "staffNotify", label: "Obavijest osoblju", mobileLabel: "Obavijest" },
+  { key: "activity", label: "Aktivnost", mobileLabel: "Aktivnost" },
 ];
 
 export default function AdminDashboard({ user }) {
@@ -335,6 +337,10 @@ export default function AdminDashboard({ user }) {
 
         {activeTab === "staff" && (
           <StaffManagement showNotification={showNotification} hideTopBorder />
+        )}
+
+        {activeTab === "activity" && (
+          <StaffActivity showNotification={showNotification} hideTopBorder />
         )}
 
         {activeTab === "staffNotify" && (
