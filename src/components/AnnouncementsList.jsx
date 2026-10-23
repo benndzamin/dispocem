@@ -334,6 +334,7 @@ export default function AnnouncementsList({
           deletedByRole: role,
           actorUserId: currentUser?.id,
           wasAwaitingApproval,
+          buyerId: deleteTarget.buyer_id,
         },
       })
       .catch((err) =>
@@ -417,7 +418,8 @@ export default function AnnouncementsList({
       new_status: selectedStatus,
     });
 
-    if (previousStatus !== selectedStatus) {
+    // created_by je null ako je kreator (osoblje) u međuvremenu obrisan.
+    if (previousStatus !== selectedStatus && statusTarget.created_by) {
       supabase.functions
         .invoke("send-status-push-notification", {
           body: {

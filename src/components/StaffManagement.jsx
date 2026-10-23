@@ -4,8 +4,8 @@ import { supabase } from "../supabaseClient";
 const ROLE_LABELS = {
   wb_supervisor: "Supervizor vage",
   wb_operator: "Operater vage",
-  mill_operator: "Radnik na mlinu cementa",
-  silo_viewer: "Pregled raspoloživog cementa",
+  mill_operator: "Rukovodilac mlina cementa",
+  silo_viewer: "Voditelj prodaje",
 };
 
 const ROLE_OPTIONS = [

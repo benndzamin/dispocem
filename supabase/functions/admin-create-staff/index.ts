@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
     return jsonResponse(
       {
         error:
-          "Uloga mora biti supervisor, operater, radnik na mlinu cementa ili pregled raspoloživog cementa.",
+          "Uloga mora biti supervisor, operater, rukovodilac mlina cementa ili voditelj prodaje.",
       },
       400,
     );

@@ -23,7 +23,11 @@ const tabs = [
   { key: "schedule", label: "Vrijeme najave", mobileLabel: "Raspored" },
 ];
 
-export default function VagaSupervisor({ user }) {
+// Koristi ga i voditelj prodaje (silo_viewer) - ima ista prava kao supervisor
+// vage, plus mijenja odgovorno lice kupcima. Djeci se i dalje prosljeđuje
+// "wb_supervisor" kao uloga za dozvole jer je ponašanje identično.
+export default function VagaSupervisor({ user, userRole = "wb_supervisor" }) {
+  const isVoditeljProdaje = userRole === "silo_viewer";
   const [activeTab, setActiveTab] = useState("home");
   const [stats, setStats] = useState({
     buyers: 0,
@@ -44,7 +48,7 @@ export default function VagaSupervisor({ user }) {
     alerts: newAnnouncementAlerts,
     dismiss: dismissNewAnnouncementAlert,
   } = useNewAnnouncementAlerts(user?.id, "wb_supervisor");
-  const pendingApprovalsCountRaw = usePendingApprovalsCount();
+  const pendingApprovalsCountRaw = usePendingApprovalsCount(user?.id);
   const pendingApprovalsCount = pendingApprovalsCountRaw ?? 0;
 
   useEffect(() => {
@@ -147,7 +151,9 @@ export default function VagaSupervisor({ user }) {
   };
 
   const normalizedDeleteSearch = deleteSearch.trim().toLowerCase();
+  // Kupca smije obrisati samo njegovo odgovorno lice (provjerava i baza).
   const filteredBuyers = buyers.filter((buyer) => {
+    if (buyer.odgovorno_lice_id !== user?.id) return false;
     if (!normalizedDeleteSearch) return true;
     return buyer.naziv_firme?.toLowerCase().startsWith(normalizedDeleteSearch);
   });
@@ -176,7 +182,7 @@ export default function VagaSupervisor({ user }) {
           <div className="pointer-events-none absolute inset-x-0 bottom-0 border-b border-gray-200" />
           <div className="pb-4">
             <h2 className="text-2xl font-semibold text-gray-900">
-              Supervisor dashboard
+              {isVoditeljProdaje ? "Voditelj prodaje" : "Supervisor dashboard"}
             </h2>
             <p className="text-sm text-gray-500">
               Upravljajte najavama, kupcima i njihovim dozvolama.
@@ -354,6 +360,7 @@ export default function VagaSupervisor({ user }) {
         )}
 
         <BuyerManagement
+          viewerRole={userRole}
           showNotification={showNotification}
           hideTopBorder
           addModalSignal={addBuyerSignal}
@@ -438,6 +445,7 @@ export default function VagaSupervisor({ user }) {
                 </h3>
                 <p className="text-sm text-gray-500">
                   Pronađite kupca, zatim kliknite ikonu kante u koloni Akcija.
+                  Prikazani su samo kupci za koje ste odgovorno lice.
                 </p>
               </div>
               <button
@@ -506,7 +514,8 @@ export default function VagaSupervisor({ user }) {
                           colSpan="4"
                           className="px-4 py-8 text-center text-sm text-gray-500"
                         >
-                          Nema kupaca koji odgovaraju pretrazi.
+                          Nema kupaca (za koje ste odgovorno lice) koji
+                          odgovaraju pretrazi.
                         </td>
                       </tr>
                     )}

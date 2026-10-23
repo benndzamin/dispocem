@@ -7,9 +7,9 @@ import KupacDashboard from "./components/KupacDashboard";
 import VagaSupervisor from "./components/VagaSupervisor";
 import VagaOperator from "./components/VagaOperator";
 import MillOperatorDashboard from "./components/MillOperatorDashboard";
-import SiloStockDashboard from "./components/SiloStockDashboard";
 import UserBadge from "./components/UserBadge";
 import PushSubscribeButton from "./components/PushSubscribeButton";
+import ChangePasswordButton from "./components/ChangePasswordButton";
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -110,9 +110,14 @@ export default function App() {
               <UserBadge user={session.user} userProfile={userProfile} />
 
               {(userProfile?.rola === "wb_supervisor" ||
+                userProfile?.rola === "silo_viewer" ||
                 userProfile?.rola === "wb_operator" ||
                 userProfile?.rola === "buyer") && (
                 <PushSubscribeButton userId={session.user.id} />
+              )}
+
+              {userProfile?.rola === "admin" && (
+                <ChangePasswordButton email={session.user.email} />
               )}
 
               {/* Profi Logout Button */}
@@ -142,7 +147,7 @@ export default function App() {
         )}
 
         {userRole === "silo_viewer" && (
-          <SiloStockDashboard user={session?.user} canEdit={false} />
+          <VagaSupervisor user={session?.user} userRole="silo_viewer" />
         )}
 
         {userRole === "buyer" && (

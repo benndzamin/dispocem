@@ -4,6 +4,7 @@ import CementCatalogManager from "./CementCatalogManager";
 import BuyerManagement from "./BuyerManagement";
 import AnnouncementsList from "./AnnouncementsList";
 import StaffManagement from "./StaffManagement";
+import StaffNotification from "./StaffNotification";
 import SiloStockDashboard from "./SiloStockDashboard";
 import DashboardTabs from "./DashboardTabs";
 
@@ -14,6 +15,7 @@ const tabs = [
   { key: "buyers", label: "Kupci", mobileLabel: "Kupci" },
   { key: "announcements", label: "Najave", mobileLabel: "Najave" },
   { key: "staff", label: "Osoblje", mobileLabel: "Osoblje" },
+  { key: "staffNotify", label: "Obavijest osoblju", mobileLabel: "Obavijest" },
 ];
 
 export default function AdminDashboard({ user }) {
@@ -324,11 +326,22 @@ export default function AdminDashboard({ user }) {
         )}
 
         {activeTab === "buyers" && (
-          <BuyerManagement showNotification={showNotification} hideTopBorder />
+          <BuyerManagement
+            viewerRole="admin"
+            showNotification={showNotification}
+            hideTopBorder
+          />
         )}
 
         {activeTab === "staff" && (
           <StaffManagement showNotification={showNotification} hideTopBorder />
+        )}
+
+        {activeTab === "staffNotify" && (
+          <StaffNotification
+            showNotification={showNotification}
+            hideTopBorder
+          />
         )}
 
         {activeTab === "cement" && <CementCatalogManager />}

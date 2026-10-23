@@ -47,20 +47,46 @@ Deno.serve(async (req) => {
   // odobrenje" u "na čekanju") tiče se samo operatera - oni je tek sad vide.
   // Brisanje najave koja je jos bila "čeka odobrenje" operater nikad nije ni
   // vidio (RLS ga sakriva od operatera), pa se o tom brisanju obavjestava
-  // samo supervizor.
+  // samo supervizor. Voditelj prodaje (silo_viewer) prima sve što i supervizor.
+  //
+  // Najava koja čeka odobrenje (nova ili obrisana) tiče se samo odgovornog
+  // lica tog kupca - ne ostalih supervizora/voditelja, a operater je ni ne
+  // vidi. Ako kupac nije poznat (stari klijent bez buyerId), pada se nazad
+  // na sve supervizore i voditelje.
+  const isAwaitingApprovalEvent =
+    (payload.action === "deleted" && payload.wasAwaitingApproval) ||
+    (payload.action !== "deleted" &&
+      payload.action !== "approved" &&
+      payload.awaitingApproval);
+
+  let odgovornoLiceId: string | null = null;
+  if (isAwaitingApprovalEvent && payload.buyerId) {
+    const { data: buyer } = await supabase
+      .from("users")
+      .select("odgovorno_lice_id")
+      .eq("id", payload.buyerId)
+      .maybeSingle();
+    odgovornoLiceId = buyer?.odgovorno_lice_id ?? null;
+  }
+
+  const supervisorRoles = ["wb_supervisor", "silo_viewer"];
   const targetRoles =
     payload.action === "approved"
       ? ["wb_operator"]
-      : payload.action === "deleted" && payload.deletedByRole === "wb_operator"
-        ? ["wb_supervisor"]
-        : payload.action === "deleted" && payload.wasAwaitingApproval
-          ? ["wb_supervisor"]
-          : ["wb_supervisor", "wb_operator"];
+      : isAwaitingApprovalEvent
+        ? supervisorRoles
+        : payload.action === "deleted" && payload.deletedByRole === "wb_operator"
+          ? supervisorRoles
+          : [...supervisorRoles, "wb_operator"];
 
-  const { data: recipients, error: recipientsError } = await supabase
+  let recipientsQuery = supabase
     .from("users")
-    .select("id, push_subscriptions(id, endpoint, p256dh, auth)")
-    .in("rola", targetRoles);
+    .select("id, push_subscriptions(id, endpoint, p256dh, auth)");
+  recipientsQuery = odgovornoLiceId
+    ? recipientsQuery.eq("id", odgovornoLiceId)
+    : recipientsQuery.in("rola", targetRoles);
+
+  const { data: recipients, error: recipientsError } = await recipientsQuery;
 
   if (recipientsError) {
     return new Response(JSON.stringify({ error: recipientsError.message }), {
@@ -82,7 +108,9 @@ Deno.serve(async (req) => {
       ? "Najava obrisana"
       : isApproved
         ? "Najava odobrena"
-        : "Nova najava otpreme",
+        : isAwaitingApprovalEvent
+          ? "Najava čeka odobrenje"
+          : "Nova najava otpreme",
     body: isDeleted
       ? `${payload.deletedByLabel || payload.firma} je obrisao/la najavu za utovar (${payload.vrstaCementa}).`
       : isApproved

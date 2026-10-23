@@ -37,11 +37,19 @@ export default function useNewAnnouncementAlerts(currentUserId, viewerRole) {
           const row = payload.new;
           if (!row || row.created_by === currentUserId) return;
 
+          // Najava koja čeka odobrenje tiče se samo odgovornog lica tog
+          // kupca - ostali je vide u listi, ali bez toasta.
+          const isAwaitingApproval = row.status === "awaiting_approval";
+
           addAlert({
             id: row.id,
             type: "insert",
             row,
-            message: `${row.firma || "Kupac"} je kreirao/la novu najavu za utovar (${row.vrsta_cementa}).`,
+            message: isAwaitingApproval
+              ? `${row.firma || "Kupac"} je kreirao/la najavu koja čeka vaše odobrenje (${row.vrsta_cementa}).`
+              : `${row.firma || "Kupac"} je kreirao/la novu najavu za utovar (${row.vrsta_cementa}).`,
+            silent:
+              isAwaitingApproval && row.odgovorno_lice_id !== currentUserId,
           });
         },
       )

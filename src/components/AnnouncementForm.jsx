@@ -100,6 +100,7 @@ export default function AnnouncementForm({
 
     const payload = {
       created_by: currentUser?.id,
+      buyer_id: effectiveBuyerProfile?.id ?? null,
       firma: effectiveBuyerProfile?.naziv_firme || "",
       vrsta_cementa: vrstaCementa,
       datum_planiranja_odpreme: datumPlaniranja,
@@ -149,6 +150,8 @@ export default function AnnouncementForm({
           firma: payload.firma,
           vrstaCementa: payload.vrsta_cementa,
           actorUserId: currentUser?.id,
+          buyerId: payload.buyer_id,
+          awaitingApproval: payload.status === "awaiting_approval",
         },
       })
       .catch((err) =>

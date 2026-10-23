@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
       const { data: supervisors, error: supervisorsError } = await supabase
         .from("users")
         .select("email")
-        .eq("rola", "wb_supervisor");
+        .in("rola", ["wb_supervisor", "silo_viewer"]);
 
       if (supervisorsError) {
         result.supervisorsError = supervisorsError.message;

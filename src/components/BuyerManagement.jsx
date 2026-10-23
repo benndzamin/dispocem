@@ -1,13 +1,46 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 
+// Rinfuza se prepoznaje po nazivu (isto kao DispatchChart) - kolona
+// "packaging" nije pouzdana.
+const isBulkCement = (name) => /rinfuza/i.test(name || "");
+
+const CEMENT_GROUPS = [
+  {
+    key: "vrece",
+    label: "Vreće",
+    image: "/Vreće.png",
+    imageClass: "h-20 sm:h-28",
+    match: (name) => !isBulkCement(name),
+  },
+  {
+    key: "rinfuza",
+    label: "Rinfuza",
+    image: "/Rinfuza.png",
+    imageClass: "h-24 sm:h-32",
+    match: isBulkCement,
+  },
+];
+
+const ODGOVORNO_LICE_ROLE_LABELS = {
+  silo_viewer: "Voditelj prodaje",
+  wb_supervisor: "Supervizor vage",
+};
+
 export default function BuyerManagement({
+  viewerRole = "wb_supervisor",
   showNotification = () => {},
   hideTopBorder = false,
   addModalSignal = 0,
   isActiveTab = true,
 }) {
+  // Odgovorno lice mijenjaju samo admin i voditelj prodaje (baza to i
+  // provjerava triggerom) - supervizoru je samo prikazano.
+  const canAssignOdgovorno =
+    viewerRole === "admin" || viewerRole === "silo_viewer";
   const [buyers, setBuyers] = useState([]);
+  const [odgovornoOptions, setOdgovornoOptions] = useState([]);
+  const [odgovornoLiceId, setOdgovornoLiceId] = useState("");
   const [cementTypes, setCementTypes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedBuyer, setSelectedBuyer] = useState(null);
@@ -35,6 +68,7 @@ export default function BuyerManagement({
     setMessage("");
     setAnnouncementRequired(true);
     setApprovalRequired(false);
+    setOdgovornoLiceId(defaultOdgovornoId);
     setModalMode("create");
   };
 
@@ -48,6 +82,7 @@ export default function BuyerManagement({
       setDozvoljeniArtikli(buyer.dozvoljeni_artikli || []);
       setAnnouncementRequired(buyer.announcement_required ?? true);
       setApprovalRequired(buyer.approval_required ?? false);
+      setOdgovornoLiceId(buyer.odgovorno_lice_id || "");
       setModalMode("edit");
     } else {
       resetForm();
@@ -97,10 +132,30 @@ export default function BuyerManagement({
     }
   };
 
+  const fetchOdgovornoOptions = async () => {
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, email, rola")
+      .in("rola", Object.keys(ODGOVORNO_LICE_ROLE_LABELS))
+      .order("created_at", { ascending: true });
+    if (!error) setOdgovornoOptions(data || []);
+  };
+
   useEffect(() => {
     fetchBuyers();
     fetchCementTypes();
+    fetchOdgovornoOptions();
   }, []);
+
+  // Default za novog kupca je voditelj prodaje (isto pravilo kao u bazi).
+  const defaultOdgovornoId =
+    odgovornoOptions.find((o) => o.rola === "silo_viewer")?.id || "";
+
+  const odgovornoLabel = (id) => {
+    const option = odgovornoOptions.find((o) => o.id === id);
+    if (!option) return "-";
+    return `${option.email} (${ODGOVORNO_LICE_ROLE_LABELS[option.rola]})`;
+  };
 
   useEffect(() => {
     if (addModalSignal > 0) openBuyerModal();
@@ -143,6 +198,8 @@ export default function BuyerManagement({
 
     try {
       if (!nazivFirme) throw new Error("Naziv firme je obavezan.");
+      if (canAssignOdgovorno && !odgovornoLiceId)
+        throw new Error("Odgovorno lice je obavezno.");
 
       if (selectedBuyer) {
         const error = await updateBuyerProfile(selectedBuyer.id, {
@@ -151,6 +208,7 @@ export default function BuyerManagement({
           dozvoljeni_artikli: dozvoljeniArtikli,
           announcement_required: announcementRequired,
           approval_required: approvalRequired,
+          ...(canAssignOdgovorno ? { odgovorno_lice_id: odgovornoLiceId } : {}),
         });
         if (error) throw error;
         resetForm();
@@ -192,6 +250,17 @@ export default function BuyerManagement({
       if (profileError) throw profileError;
 
       if (prevSession) await supabase.auth.setSession(prevSession);
+
+      // Profil je upisan pod sesijom novog kupca, pa mu je baza dodijelila
+      // voditelja prodaje - izbor admina/voditelja upisujemo tek sad, pod
+      // njihovom vraćenom sesijom.
+      if (canAssignOdgovorno && odgovornoLiceId !== defaultOdgovornoId) {
+        const { error: odgovornoError } = await supabase
+          .from("users")
+          .update({ odgovorno_lice_id: odgovornoLiceId })
+          .eq("id", newUserId);
+        if (odgovornoError) throw odgovornoError;
+      }
 
       showNotification("Kupac je uspješno kreiran.", "success");
       resetForm();
@@ -310,6 +379,12 @@ export default function BuyerManagement({
                       </th>
                       <th
                         scope="col"
+                        className="border-b border-gray-200 px-4 py-3 font-semibold whitespace-nowrap"
+                      >
+                        Odgovorno lice
+                      </th>
+                      <th
+                        scope="col"
                         className="relative border-b border-gray-200 px-4 py-3"
                       >
                         <span className="sr-only">Uredi</span>
@@ -351,6 +426,9 @@ export default function BuyerManagement({
                             disabled
                             className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red disabled:cursor-not-allowed disabled:opacity-70"
                           />
+                        </td>
+                        <td className="px-4 py-3">
+                          {odgovornoLabel(buyer.odgovorno_lice_id)}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <button
@@ -418,6 +496,14 @@ export default function BuyerManagement({
                       Za ovog kupca obavezno je provjeravanje uplata prije
                       odobrenja najave za utovar.
                     </label>
+                    <div className="mt-3 text-sm">
+                      <div className="text-xs uppercase text-gray-400">
+                        Odgovorno lice
+                      </div>
+                      <div className="text-gray-700">
+                        {odgovornoLabel(buyer.odgovorno_lice_id)}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -510,7 +596,7 @@ export default function BuyerManagement({
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4">
-          <div className="w-full max-w-3xl rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-2xl shadow-black/10">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-2xl shadow-black/10">
             <div className="mb-4 flex items-center justify-between gap-4">
               <div>
                 <h4 className="text-lg font-semibold text-gray-900">
@@ -588,29 +674,52 @@ export default function BuyerManagement({
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
-                <label className="text-xs uppercase text-gray-500 font-semibold">
+              <div>
+                <label className="block text-xs uppercase text-gray-500 font-semibold mb-2">
                   Dozvoljeni artikli:
                 </label>
-                <div className="flex flex-wrap gap-2">
-                  {cementTypes.map((cement) => (
-                    <label
-                      key={cement.value}
-                      className="flex items-center gap-1 text-sm text-gray-900"
+                <div className="grid gap-4 md:grid-cols-2">
+                  {CEMENT_GROUPS.map((group) => (
+                    <div
+                      key={group.key}
+                      className="rounded-xl border border-gray-200 p-3"
                     >
-                      <input
-                        type="checkbox"
-                        checked={dozvoljeniArtikli.includes(cement.value)}
-                        onChange={() => handleCheckboxChange(cement.value)}
-                        className="form-checkbox rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red"
+                      <img
+                        src={group.image}
+                        alt={group.label}
+                        title={group.label}
+                        className={`mx-auto mb-3 w-auto max-w-full rounded-lg object-contain ${group.imageClass}`}
                       />
-                      {cement.label}
-                      {cement.na_stanju === false && (
-                        <span className="text-xs text-gray-400">
-                          (nema na stanju)
-                        </span>
-                      )}
-                    </label>
+                      <div className="flex flex-col gap-2">
+                        {cementTypes
+                          .filter((cement) => group.match(cement.value))
+                          .map((cement) => (
+                            <label
+                              key={cement.value}
+                              className="flex items-start gap-2 text-sm text-gray-900"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={dozvoljeniArtikli.includes(
+                                  cement.value,
+                                )}
+                                onChange={() =>
+                                  handleCheckboxChange(cement.value)
+                                }
+                                className="form-checkbox mt-0.5 shrink-0 rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red"
+                              />
+                              <span className="min-w-0 break-words">
+                                {cement.label}
+                                {cement.na_stanju === false && (
+                                  <span className="ml-1 text-xs text-gray-400">
+                                    (nema na stanju)
+                                  </span>
+                                )}
+                              </span>
+                            </label>
+                          ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -638,6 +747,40 @@ export default function BuyerManagement({
                   Za ovog kupca obavezno je provjeravanje uplata prije odobrenja
                   najave za utovar.
                 </label>
+              </div>
+
+              <div>
+                <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
+                  Odgovorno lice
+                </label>
+                {canAssignOdgovorno ? (
+                  <select
+                    required
+                    value={odgovornoLiceId}
+                    onChange={(e) => setOdgovornoLiceId(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100 md:w-1/2"
+                  >
+                    <option value="" disabled>
+                      Odaberite odgovorno lice...
+                    </option>
+                    {odgovornoOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.email} (
+                        {ODGOVORNO_LICE_ROLE_LABELS[option.rola]})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-sm text-gray-700">
+                    {modalMode === "edit"
+                      ? odgovornoLabel(odgovornoLiceId)
+                      : "Voditelj prodaje (dodjeljuje se automatski)"}
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Prima notifikacije za najave ovog kupca koje čekaju
+                  odobrenje.
+                </p>
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">

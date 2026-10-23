@@ -22,8 +22,8 @@ const ROLE_DETAILS = {
     desc: "Unosi mjere silosa.",
   },
   silo_viewer: {
-    title: "Pregled cementa",
-    desc: "Vidi stanje raspoloživog cementa po silosima i rinfuzama.",
+    title: "Voditelj prodaje",
+    desc: "Upravlja najavama i kupcima, odobrava najave kupaca za koje je odgovorno lice.",
   },
 };
 

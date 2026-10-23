@@ -14,7 +14,24 @@ export default function PendingApprovalsList({ currentUser }) {
   const [approving, setApproving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [staffEmails, setStaffEmails] = useState({});
   const confirmTargetRef = useRef(null);
+
+  const isMine = (item) => item.odgovorno_lice_id === currentUser?.id;
+  const odgovornoLabel = (item) =>
+    isMine(item) ? "Vi" : staffEmails[item.odgovorno_lice_id] || "-";
+
+  useEffect(() => {
+    supabase
+      .from("users")
+      .select("id, email")
+      .in("rola", ["wb_supervisor", "silo_viewer"])
+      .then(({ data }) => {
+        setStaffEmails(
+          Object.fromEntries((data || []).map((u) => [u.id, u.email])),
+        );
+      });
+  }, []);
 
   const showNotification = (message, type = "success") => {
     setNotification({ message, type });
@@ -117,7 +134,7 @@ export default function PendingApprovalsList({ currentUser }) {
   };
 
   const handleApprove = async () => {
-    if (!confirmTarget) return;
+    if (!confirmTarget || !isMine(confirmTarget)) return;
     setApproving(true);
 
     const { error } = await supabase
@@ -150,7 +167,7 @@ export default function PendingApprovalsList({ currentUser }) {
   };
 
   const handleDelete = async () => {
-    if (!confirmTarget) return;
+    if (!confirmTarget || !isMine(confirmTarget)) return;
     setDeleting(true);
 
     const { data, error } = await supabase
@@ -207,6 +224,7 @@ export default function PendingApprovalsList({ currentUser }) {
           // vidio (RLS je skriva od operatera) - ne treba mu notifikacija o
           // brisanju nečega o čemu ne zna.
           wasAwaitingApproval: true,
+          buyerId: confirmTarget.buyer_id,
         },
       })
       .catch((err) =>
@@ -296,6 +314,9 @@ export default function PendingApprovalsList({ currentUser }) {
                   <th className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold">
                     Registracija
                   </th>
+                  <th className="whitespace-nowrap border-b border-gray-200 px-3 py-3 font-semibold">
+                    Odgovorno lice
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white text-gray-700">
@@ -303,7 +324,9 @@ export default function PendingApprovalsList({ currentUser }) {
                   <tr
                     key={item.id}
                     onClick={() => openConfirm(item)}
-                    className="cursor-pointer border-b border-gray-200 last:border-b-0 hover:bg-amber-50"
+                    className={`cursor-pointer border-b border-gray-200 last:border-b-0 hover:bg-amber-50 ${
+                      isMine(item) ? "bg-amber-50/60" : ""
+                    }`}
                   >
                     <td
                       className="max-w-[16rem] truncate px-3 py-3 font-semibold text-gray-900"
@@ -328,6 +351,13 @@ export default function PendingApprovalsList({ currentUser }) {
                     <td className="whitespace-nowrap px-3 py-3">
                       {item.registarske_oznake || "-"}
                     </td>
+                    <td
+                      className={`whitespace-nowrap px-3 py-3 ${
+                        isMine(item) ? "font-semibold text-gray-900" : ""
+                      }`}
+                    >
+                      {odgovornoLabel(item)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -340,7 +370,11 @@ export default function PendingApprovalsList({ currentUser }) {
                 type="button"
                 key={item.id}
                 onClick={() => openConfirm(item)}
-                className="w-full rounded-xl border border-gray-200 bg-white p-3 sm:p-4 text-left hover:bg-amber-50"
+                className={`w-full rounded-xl border p-3 sm:p-4 text-left hover:bg-amber-50 ${
+                  isMine(item)
+                    ? "border-amber-300 bg-amber-50/60"
+                    : "border-gray-200 bg-white"
+                }`}
               >
                 <div className="font-semibold text-gray-900">{item.firma}</div>
                 <div className="mt-1 text-sm text-gray-700">
@@ -360,6 +394,10 @@ export default function PendingApprovalsList({ currentUser }) {
                   <div>
                     <span className="text-gray-400">Reg: </span>
                     {item.registarske_oznake || "-"}
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Odgovorno lice: </span>
+                    {odgovornoLabel(item)}
                   </div>
                 </div>
               </button>
@@ -389,6 +427,16 @@ export default function PendingApprovalsList({ currentUser }) {
               </span>{" "}
               ({confirmTarget.vrsta_cementa})?
             </p>
+            {!isMine(confirmTarget) && (
+              <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                Ovu najavu može odobriti ili obrisati samo odgovorno lice
+                kupca:{" "}
+                <span className="font-semibold">
+                  {odgovornoLabel(confirmTarget)}
+                </span>
+                .
+              </p>
+            )}
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
               <button
@@ -402,7 +450,7 @@ export default function PendingApprovalsList({ currentUser }) {
               <button
                 type="button"
                 onClick={handleDelete}
-                disabled={approving || deleting}
+                disabled={approving || deleting || !isMine(confirmTarget)}
                 className="flex items-center justify-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <svg
@@ -426,7 +474,7 @@ export default function PendingApprovalsList({ currentUser }) {
               <button
                 type="button"
                 onClick={handleApprove}
-                disabled={approving || deleting}
+                disabled={approving || deleting || !isMine(confirmTarget)}
                 className="flex items-center justify-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <svg
