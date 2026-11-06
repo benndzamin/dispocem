@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../supabaseClient";
 
@@ -1112,13 +1112,12 @@ function AllSilosRow({
 const HISTORY_PAGE = 50;
 
 function fetchHistoryPage(siloId, offset) {
-  let query = supabase
+  return supabase
     .from("silo_cement_changes")
     .select("id, silo_id, old_grade_id, new_grade_id, changed_by_email, changed_at")
+    .eq("silo_id", siloId)
     .order("changed_at", { ascending: false })
     .range(offset, offset + HISTORY_PAGE - 1);
-  if (siloId) query = query.eq("silo_id", siloId);
-  return query;
 }
 
 function GradeCell({ grade }) {
@@ -1126,15 +1125,46 @@ function GradeCell({ grade }) {
   return <span>{gradeFullLabel(grade)}</span>;
 }
 
-// Historija promjena vrste cementa (ko, kada, šta je bilo, šta je postavljeno).
-function SiloCementHistory({ silos, gradesById, filterSiloId, onFilterChange, version, sectionRef }) {
+// Kolone: Silos | Bilo je | Postavljeno | Ko je promijenio | Kada | strelica.
+const HISTORY_GRID = "sm:grid sm:grid-cols-[5rem_1fr_1fr_minmax(0,1fr)_9rem_1.5rem] sm:items-center sm:gap-3";
+
+// Jedna promjena u dijalogu historije: kada i ko gore, "bilo je → postavljeno" dolje.
+function HistoryChangeRow({ change, gradesById, isCurrent }) {
+  return (
+    <li className="px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-gray-500">
+        <span className="flex items-center gap-2 font-medium text-gray-700">
+          {formatDateTime(change.changed_at)}
+          {isCurrent && (
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+              trenutna
+            </span>
+          )}
+        </span>
+        <span className="break-all">{change.changed_by_email || "nepoznato"}</span>
+      </div>
+      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm">
+        <span className="rounded-md bg-gray-100 px-2 py-0.5 text-gray-600">
+          <GradeCell grade={gradesById[change.old_grade_id]} />
+        </span>
+        <span className="text-gray-400">→</span>
+        <span className="rounded-md bg-red-50 px-2 py-0.5 font-semibold text-gray-900">
+          <GradeCell grade={gradesById[change.new_grade_id]} />
+        </span>
+      </div>
+    </li>
+  );
+}
+
+// Dijalog s kompletnom historijom jednog silosa; pozadina je zamagljena.
+// Kroz portal na <body>, iznad cijele aplikacije.
+function SiloHistoryDialog({ silo, gradesById, version, onClose }) {
   const [rows, setRows] = useState([]);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const requestRef = useRef(0);
 
-  // Odgovor na stariji zahtjev (npr. prije promjene filtera) se ignoriše.
   const applyPage = (requestId, offset, { data, error: err }) => {
     if (requestId !== requestRef.current) return;
     if (err) {
@@ -1147,102 +1177,152 @@ function SiloCementHistory({ silos, gradesById, filterSiloId, onFilterChange, ve
     setLoading(false);
   };
 
+  useEffect(() => {
+    const requestId = ++requestRef.current;
+    fetchHistoryPage(silo.id, 0).then((res) => applyPage(requestId, 0, res));
+  }, [silo.id, version]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   const loadMore = () => {
     const requestId = ++requestRef.current;
     const offset = rows.length;
     setLoading(true);
-    fetchHistoryPage(filterSiloId, offset).then((res) => applyPage(requestId, offset, res));
+    fetchHistoryPage(silo.id, offset).then((res) => applyPage(requestId, offset, res));
   };
 
-  // Pri promjeni filtera stari redovi ostaju vidljivi dok ne stignu novi.
-  useEffect(() => {
-    const requestId = ++requestRef.current;
-    fetchHistoryPage(filterSiloId, 0).then((res) => applyPage(requestId, 0, res));
-  }, [filterSiloId, version]);
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 backdrop-blur-sm sm:items-center sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Historija vrste cementa za ${silo.label}`}
+        onClick={(e) => e.stopPropagation()}
+        className="flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-w-xl sm:rounded-2xl"
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-gray-200 px-4 py-3">
+          <div>
+            <div className="text-base font-bold text-gray-900">Historija vrste cementa · {silo.label}</div>
+            <div className="mt-0.5 text-xs text-gray-500">Sve promjene, od najnovije</div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Zatvori"
+            className="-mr-1 rounded-lg px-2 py-1 text-xl leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+          >
+            ×
+          </button>
+        </div>
 
-  const siloLabel = (id) => silos.find((s) => s.id === id)?.label || "?";
+        <div className="overflow-y-auto">
+          {error && <div className="px-4 py-3 text-sm text-red-700">Greška pri učitavanju historije: {error}</div>}
+          {!loading && !error && rows.length === 0 && (
+            <div className="px-4 py-6 text-center text-sm text-gray-500">Vrsta cementa još nije postavljena.</div>
+          )}
+          <ul className="divide-y divide-gray-100">
+            {rows.map((r, i) => (
+              <HistoryChangeRow key={r.id} change={r} gradesById={gradesById} isCurrent={i === 0} />
+            ))}
+          </ul>
+          {loading && <div className="px-4 py-3 text-sm text-gray-500">Učitavanje...</div>}
+          {hasMore && !loading && (
+            <div className="px-4 pb-4">
+              <button
+                type="button"
+                onClick={loadMore}
+                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Učitaj još
+              </button>
+            </div>
+          )}
+        </div>
 
+        <div className="border-t border-gray-200 px-4 py-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Zatvori
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// Historija vrsta cementa: jedan red po silosu (S1-S6) s posljednjom
+// promjenom. Klik na red otvara dijalog s kompletnom historijom tog silosa.
+function SiloCementHistory({ silos, gradesById, latestChangeBySiloId, openSiloId, onOpen, onClose, version }) {
+  const openSilo = silos.find((s) => s.id === openSiloId) || null;
   return (
-    <div ref={sectionRef} className="scroll-mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-6">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Historija vrsta cementa</div>
-        <select
-          value={filterSiloId || ""}
-          onChange={(e) => onFilterChange(e.target.value || null)}
-          className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm focus:border-brand-red focus:outline-none"
-        >
-          <option value="">Svi silosi</option>
-          {silos.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.label}
-            </option>
-          ))}
-        </select>
+    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-6">
+      <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Historija vrsta cementa</div>
+
+      <div className={`hidden px-3 pb-1 text-xs font-semibold uppercase text-gray-500 ${HISTORY_GRID}`}>
+        <div>Silos</div>
+        <div>Bilo je</div>
+        <div>Postavljeno</div>
+        <div>Ko je promijenio</div>
+        <div>Kada</div>
+        <div />
       </div>
 
-      {error && <div className="text-sm text-red-700">Greška pri učitavanju historije: {error}</div>}
-      {!loading && !error && rows.length === 0 && (
-        <div className="text-sm text-gray-500">Nema promjena vrste cementa.</div>
-      )}
-
-      {rows.length > 0 && (
-        <>
-          <table className="hidden w-full text-left text-sm sm:table">
-            <thead className="text-xs uppercase text-gray-500">
-              <tr>
-                <th className="py-1 pr-3 font-semibold">Silos</th>
-                <th className="py-1 pr-3 font-semibold">Bilo je</th>
-                <th className="py-1 pr-3 font-semibold">Postavljeno</th>
-                <th className="py-1 pr-3 font-semibold">Ko je promijenio</th>
-                <th className="py-1 font-semibold">Kada</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td className="py-1.5 pr-3 font-semibold text-gray-900">{siloLabel(r.silo_id)}</td>
-                  <td className="py-1.5 pr-3 text-gray-600">
-                    <GradeCell grade={gradesById[r.old_grade_id]} />
-                  </td>
-                  <td className="py-1.5 pr-3 font-medium text-gray-900">
-                    <GradeCell grade={gradesById[r.new_grade_id]} />
-                  </td>
-                  <td className="py-1.5 pr-3 text-gray-700">{r.changed_by_email || "nepoznato"}</td>
-                  <td className="py-1.5 whitespace-nowrap text-gray-700">{formatDateTime(r.changed_at)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <div className="space-y-2 sm:hidden">
-            {rows.map((r) => (
-              <div key={r.id} className="rounded-xl border border-gray-200 bg-white p-2.5 text-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-bold text-gray-900">{siloLabel(r.silo_id)}</span>
-                  <span className="text-xs text-gray-500">{formatDateTime(r.changed_at)}</span>
-                </div>
-                <div className="mt-1 text-gray-600">
-                  <GradeCell grade={gradesById[r.old_grade_id]} />
-                </div>
-                <div className="font-medium text-gray-900">
-                  → <GradeCell grade={gradesById[r.new_grade_id]} />
-                </div>
-                <div className="mt-1 break-all text-xs text-gray-500">{r.changed_by_email || "nepoznato"}</div>
+      <div className="space-y-2">
+        {silos.map((silo) => {
+          const change = latestChangeBySiloId[silo.id];
+          return (
+            <button
+              key={silo.id}
+              type="button"
+              onClick={() => onOpen(silo.id)}
+              title="Prikaži kompletnu historiju"
+              className={`w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-left text-sm transition-colors hover:border-gray-300 hover:bg-gray-50 ${HISTORY_GRID}`}
+            >
+              <div className="flex items-center justify-between font-bold text-gray-900">
+                {silo.label}
+                <span className="text-gray-400 sm:hidden">›</span>
               </div>
-            ))}
-          </div>
-        </>
-      )}
+              {change ? (
+                <>
+                  <div className="mt-1 text-gray-600 sm:mt-0">
+                    <span className="text-xs text-gray-400 sm:hidden">Bilo je: </span>
+                    <GradeCell grade={gradesById[change.old_grade_id]} />
+                  </div>
+                  <div className="font-medium text-gray-900">
+                    <span className="text-xs font-normal text-gray-400 sm:hidden">Postavljeno: </span>
+                    <GradeCell grade={gradesById[change.new_grade_id]} />
+                  </div>
+                  <div className="break-all text-gray-700 sm:break-normal sm:truncate" title={change.changed_by_email || ""}>
+                    {change.changed_by_email || "nepoznato"}
+                  </div>
+                  <div className="whitespace-nowrap text-xs text-gray-500 sm:text-sm sm:text-gray-700">
+                    {formatDateTime(change.changed_at)}
+                  </div>
+                </>
+              ) : (
+                <div className="mt-1 italic text-gray-400 sm:col-span-4 sm:mt-0">Vrsta još nije postavljena</div>
+              )}
+              <span className="hidden text-center text-lg text-gray-400 sm:block">›</span>
+            </button>
+          );
+        })}
+      </div>
 
-      {loading && <div className="mt-2 text-sm text-gray-500">Učitavanje...</div>}
-      {hasMore && !loading && (
-        <button
-          type="button"
-          onClick={loadMore}
-          className="mt-3 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-        >
-          Učitaj još
-        </button>
+      {openSilo && (
+        <SiloHistoryDialog silo={openSilo} gradesById={gradesById} version={version} onClose={onClose} />
       )}
     </div>
   );
@@ -1330,7 +1410,6 @@ export default function SiloStockDashboard({ user, canEdit = false, hideTopBorde
   const [savingCode, setSavingCode] = useState(null);
   const [historySiloId, setHistorySiloId] = useState(null);
   const [historyVersion, setHistoryVersion] = useState(0);
-  const historyRef = useRef(null);
 
   const fetchAll = async () => {
     if (!cache) setLoading(true);
@@ -1341,7 +1420,7 @@ export default function SiloStockDashboard({ user, canEdit = false, hideTopBorde
         supabase
           .from("silos")
           .select(
-            "*, silo_readings(*, recorded_by_profile:users(email)), silo_cement_changes(id, silo_id, new_grade_id, changed_at)"
+            "*, silo_readings(*, recorded_by_profile:users(email)), silo_cement_changes(id, silo_id, old_grade_id, new_grade_id, changed_by_email, changed_at)"
           )
           .order("code")
           .order("recorded_at", { referencedTable: "silo_readings", ascending: false })
@@ -1415,10 +1494,9 @@ export default function SiloStockDashboard({ user, canEdit = false, hideTopBorde
     };
   }
 
-  const handleShowHistory = (siloId) => {
-    setHistorySiloId(siloId);
-    historyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
+  // Link "Historija" na kartici silosa otvara isti dijalog kao klik na red.
+  const handleShowHistory = (siloId) => setHistorySiloId(siloId);
+  const closeHistory = useCallback(() => setHistorySiloId(null), []);
 
   const handleSetGrade = async (silo, grade) => {
     setSavingCode(silo.code);
@@ -1545,10 +1623,11 @@ export default function SiloStockDashboard({ user, canEdit = false, hideTopBorde
       <SiloCementHistory
         silos={silos}
         gradesById={gradesById}
-        filterSiloId={historySiloId}
-        onFilterChange={setHistorySiloId}
+        latestChangeBySiloId={changeBySiloId}
+        openSiloId={historySiloId}
+        onOpen={setHistorySiloId}
+        onClose={closeHistory}
         version={historyVersion}
-        sectionRef={historyRef}
       />
     </div>
     </SiloGradeContext.Provider>
