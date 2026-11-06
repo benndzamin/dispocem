@@ -65,7 +65,9 @@ export default function App() {
 
   // Funkcija za Logout
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    // "local": odjava samo s ovog uređaja. Podrazumijevani "global" je brisao
+    // sesije na svim uređajima istog naloga (npr. zajednički nalog mlina).
+    await supabase.auth.signOut({ scope: "local" });
   };
 
   if (loading) {

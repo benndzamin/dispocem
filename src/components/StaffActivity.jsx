@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "../supabaseClient";
 import { STAFF_PRESENCE_CHANNEL } from "../hooks/useStaffPresence";
 import { describePushHost, parseUserAgent } from "../utils/device";
@@ -50,6 +51,127 @@ function formatGeo(geo) {
   return [geo.city, geo.country].filter(Boolean).join(", ") || "Nepoznata lokacija";
 }
 
+function latestOf(a, b) {
+  if (!a) return b || null;
+  if (!b) return a;
+  return new Date(a) > new Date(b) ? a : b;
+}
+
+// Dijalog "Vidi sve": zadnjih 20 prijava naloga (trajni log, ostaje i nakon
+// odjave). Zamagljena pozadina; zatvara se na Esc, × ili klik van prozora.
+function LoginHistoryDialog({ member, geoByIp, fetchGeo, version, onRevoke, onClose }) {
+  const [logins, setLogins] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase.rpc("get_staff_logins", { p_user_id: member.id }).then(({ data, error: err }) => {
+      if (cancelled) return;
+      if (err) {
+        setError(err.message);
+      } else {
+        setLogins(data || []);
+        fetchGeo((data || []).map((l) => l.ip));
+      }
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // fetchGeo se ne mijenja smisleno između rendera - učitava se po nalogu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [member.id, version]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 backdrop-blur-sm sm:items-center sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Prijave za ${member.email}`}
+        onClick={(e) => e.stopPropagation()}
+        className="flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-w-xl sm:rounded-2xl"
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-gray-200 px-4 py-3">
+          <div className="min-w-0">
+            <div className="break-all text-base font-bold text-gray-900">Prijave · {member.email}</div>
+            <div className="mt-0.5 text-xs text-gray-500">
+              Zadnjih 20 prijava, od najnovije. Lokacija je približna (po IP adresi).
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Zatvori"
+            className="-mr-1 rounded-lg px-2 py-1 text-xl leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="overflow-y-auto">
+          {loading && <div className="px-4 py-3 text-sm text-gray-500">Učitavanje...</div>}
+          {error && <div className="px-4 py-3 text-sm text-red-700">Greška pri učitavanju prijava: {error}</div>}
+          {!loading && !error && logins.length === 0 && (
+            <div className="px-4 py-6 text-center text-sm text-gray-500">Nema zabilježenih prijava.</div>
+          )}
+          <ul className="divide-y divide-gray-100">
+            {logins.map((l) => (
+              <li key={l.session_id} className="px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                  <span className="text-sm font-semibold text-gray-900">{formatDateTime(l.logged_in_at)}</span>
+                  {l.is_active && (
+                    <span className="flex items-center gap-2">
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                        aktivna
+                      </span>
+                      {onRevoke && (
+                        <button
+                          type="button"
+                          onClick={() => onRevoke(l)}
+                          className="rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs text-gray-700 hover:border-red-300 hover:text-red-600"
+                        >
+                          Odjavi
+                        </button>
+                      )}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 text-sm text-gray-700">{parseUserAgent(l.user_agent)}</div>
+                <div className="mt-0.5 break-all text-xs text-gray-500">
+                  📍 {formatGeo(geoByIp[l.ip])} · {l.ip || "-"}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="border-t border-gray-200 px-4 py-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Zatvori
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 export default function StaffActivity({
   showNotification = () => {},
   hideTopBorder = false,
@@ -61,6 +183,8 @@ export default function StaffActivity({
   const [searchTerm, setSearchTerm] = useState("");
   const [confirm, setConfirm] = useState(null); // { type, member, session }
   const [revoking, setRevoking] = useState(false);
+  const [loginsMember, setLoginsMember] = useState(null); // dijalog "Vidi sve"
+  const [loginsVersion, setLoginsVersion] = useState(0); // osvježi dijalog nakon odjave
   // "Sada" za relativna vremena - osvježava se svake minute.
   const [now, setNow] = useState(() => Date.now());
 
@@ -99,9 +223,10 @@ export default function StaffActivity({
     }
     setStaff(data || []);
     fetchGeo(
-      (data || []).flatMap((member) =>
-        (member.sessions || []).map((s) => s.ip),
-      ),
+      (data || []).flatMap((member) => [
+        ...(member.sessions || []).map((s) => s.ip),
+        member.last_login?.ip,
+      ]),
     );
   };
 
@@ -185,6 +310,7 @@ export default function StaffActivity({
       "success",
     );
     setConfirm(null);
+    setLoginsVersion((v) => v + 1);
     fetchActivity();
   };
 
@@ -198,6 +324,7 @@ export default function StaffActivity({
   });
 
   const onlineUserIds = new Set(online.map((entry) => entry.user_id));
+  const closeLogins = useCallback(() => setLoginsMember(null), []);
 
   return (
     <div
@@ -296,7 +423,12 @@ export default function StaffActivity({
       ) : (
         <div className="space-y-3">
           {filteredStaff.map((member) => {
-            const lastActive = member.sessions?.[0]?.last_active;
+            // Najnovije od: aktivnost žive sesije i trajno zapamćena aktivnost.
+            const lastActive = latestOf(
+              member.sessions?.[0]?.last_active,
+              member.last_seen_at,
+            );
+            const lastLogin = member.last_login;
             const isRecentlyActive =
               lastActive &&
               now - new Date(lastActive).getTime() < ACTIVE_WINDOW_MS;
@@ -325,13 +457,33 @@ export default function StaffActivity({
                       </span>
                     </div>
                     <div className="mt-1 text-xs text-gray-500">
-                      Zadnja prijava: {formatDateTime(member.last_sign_in_at)}
-                      {" · "}
                       {isOnline
                         ? "Online"
                         : isRecentlyActive
                           ? "Aktivan/na"
                           : `Zadnja aktivnost: ${timeAgo(lastActive, now)}`}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-600">
+                      <span>
+                        <span className="font-medium text-gray-700">Zadnja prijava:</span>{" "}
+                        {lastLogin ? (
+                          <>
+                            {formatDateTime(lastLogin.logged_in_at)} ·{" "}
+                            {parseUserAgent(lastLogin.user_agent)} · 📍{" "}
+                            {formatGeo(geoByIp[lastLogin.ip])} ·{" "}
+                            <span className="break-all">{lastLogin.ip || "-"}</span>
+                          </>
+                        ) : (
+                          formatDateTime(member.last_sign_in_at)
+                        )}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setLoginsMember(member)}
+                        className="rounded-md border border-gray-300 bg-white px-2 py-0.5 text-[11px] font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        Vidi sve
+                      </button>
                     </div>
                   </div>
                   {canRevoke && member.sessions?.length > 0 && (
@@ -345,41 +497,14 @@ export default function StaffActivity({
                   )}
                 </div>
 
-                {member.sessions?.length > 0 ? (
-                  <div className="mt-3 space-y-2">
-                    {member.sessions.map((s) => (
-                      <div
-                        key={s.id}
-                        className="flex flex-col gap-2 rounded-lg bg-gray-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <div className="min-w-0 text-sm">
-                          <div className="font-medium text-gray-900">
-                            {parseUserAgent(s.user_agent)}
-                          </div>
-                          <div className="break-all text-xs text-gray-500">
-                            📍 {formatGeo(geoByIp[s.ip])} · {s.ip || "-"} ·
-                            aktivnost {timeAgo(s.last_active, now)}
-                          </div>
-                        </div>
-                        {canRevoke && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setConfirm({ type: "session", member, session: s })
-                            }
-                            className="shrink-0 self-start whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-700 hover:border-red-300 hover:text-red-600 sm:self-auto"
-                          >
-                            Odjavi
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-2 text-xs text-gray-400">
-                    Nije prijavljen/a ni na jednom uređaju.
-                  </p>
-                )}
+                {/* Pojedinačni uređaji (i "Odjavi" po uređaju) su u dijalogu "Vidi sve". */}
+                <div className="mt-1 text-xs text-gray-400">
+                  {member.sessions?.length > 0
+                    ? `Trenutno prijavljen/a na ${member.sessions.length} ${
+                        member.sessions.length === 1 ? "uređaju" : "uređaja"
+                      }`
+                    : "Trenutno nije prijavljen/a ni na jednom uređaju"}
+                </div>
 
                 {member.push_devices?.length > 0 && (
                   <div className="mt-2 text-xs text-gray-500">
@@ -395,8 +520,29 @@ export default function StaffActivity({
         </div>
       )}
 
+      {loginsMember && (
+        <LoginHistoryDialog
+          member={loginsMember}
+          geoByIp={geoByIp}
+          fetchGeo={fetchGeo}
+          version={loginsVersion}
+          onRevoke={
+            loginsMember.rola !== "admin"
+              ? (login) =>
+                  setConfirm({
+                    type: "session",
+                    member: loginsMember,
+                    session: { id: login.session_id, user_agent: login.user_agent },
+                  })
+              : null
+          }
+          onClose={closeLogins}
+        />
+      )}
+
       {confirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4">
+        // z-[60]: potvrda odjave se otvara i iznad dijaloga "Vidi sve".
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/60 p-4">
           <div className="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-4 shadow-2xl shadow-black/10 sm:p-6">
             <h4 className="text-lg font-semibold text-gray-900">
               {confirm.type === "session"
