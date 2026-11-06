@@ -1,9 +1,61 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import {
+  DEFAULT_PACKAGING,
+  PACKAGING_OPTIONS,
+  composeCementName,
+  packagingLabel,
+  splitCementName,
+} from "../utils/cementPackaging";
+
+// Izbor pakovanja (25/1, 20/1, rinfuzni) kao tri dugmeta.
+function PackagingPicker({ value, onChange, name }) {
+  return (
+    <div className="grid grid-cols-3 gap-2" role="radiogroup">
+      {PACKAGING_OPTIONS.map((option) => {
+        const selected = value === option.value;
+        return (
+          <label
+            key={option.value}
+            className={`cursor-pointer rounded-lg border px-3 py-2 text-center text-sm font-medium transition-colors ${
+              selected
+                ? "border-brand-red bg-red-50 text-brand-red"
+                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            <input
+              type="radio"
+              name={name}
+              value={option.value}
+              checked={selected}
+              onChange={() => onChange(option.value)}
+              className="sr-only"
+            />
+            {option.label}
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+function PackagingBadge({ packaging }) {
+  const bulk = packaging === "rinfuzni";
+  return (
+    <span
+      className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${
+        bulk ? "border-blue-200 bg-blue-50 text-blue-700" : "border-amber-200 bg-amber-50 text-amber-800"
+      }`}
+    >
+      {packagingLabel(packaging)}
+    </span>
+  );
+}
 
 export default function CementCatalogManager() {
   const [items, setItems] = useState([]);
   const [name, setName] = useState("");
+  const [packaging, setPackaging] = useState(DEFAULT_PACKAGING);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
@@ -12,6 +64,7 @@ export default function CementCatalogManager() {
   // Izmjena - state
   const [editTarget, setEditTarget] = useState(null);
   const [editName, setEditName] = useState("");
+  const [editPackaging, setEditPackaging] = useState(DEFAULT_PACKAGING);
   const [editNaStanju, setEditNaStanju] = useState(true);
   const [editLoading, setEditLoading] = useState(false);
 
@@ -60,7 +113,7 @@ export default function CementCatalogManager() {
 
     const { error } = await supabase
       .from("cement_types")
-      .insert([{ name: name.trim() }]);
+      .insert([{ name: composeCementName(name, packaging), packaging }]);
 
     if (error) {
       showMessage(`Greška pri dodavanju: ${error.message}`, "error");
@@ -69,6 +122,7 @@ export default function CementCatalogManager() {
     }
 
     setName("");
+    setPackaging(DEFAULT_PACKAGING);
     fetchItems();
     showMessage("Vrsta cementa uspješno dodana.");
     setLoading(false);
@@ -80,17 +134,22 @@ export default function CementCatalogManager() {
   const closeAddModal = () => {
     setShowAddModal(false);
     setName("");
+    setPackaging(DEFAULT_PACKAGING);
   };
 
   const openEditModal = (item) => {
     setEditTarget(item);
-    setEditName(item.name);
+    // Forma radi s osnovnim nazivom; dodatak pakovanja se sastavlja pri snimanju.
+    const parts = splitCementName(item.name, item.packaging);
+    setEditName(parts.baseName);
+    setEditPackaging(parts.packaging);
     setEditNaStanju(item.na_stanju !== false);
   };
 
   const closeEditModal = () => {
     setEditTarget(null);
     setEditName("");
+    setEditPackaging(DEFAULT_PACKAGING);
     setEditNaStanju(true);
   };
 
@@ -99,9 +158,10 @@ export default function CementCatalogManager() {
     if (!editTarget || !editName.trim()) return;
     setEditLoading(true);
 
+    const fullName = composeCementName(editName, editPackaging);
     const { error } = await supabase
       .from("cement_types")
-      .update({ name: editName.trim(), na_stanju: editNaStanju })
+      .update({ name: fullName, packaging: editPackaging, na_stanju: editNaStanju })
       .eq("id", editTarget.id);
 
     setEditLoading(false);
@@ -111,7 +171,7 @@ export default function CementCatalogManager() {
       return;
     }
 
-    showMessage(`Vrsta cementa "${editName.trim()}" je izmijenjena.`);
+    showMessage(`Vrsta cementa "${fullName}" je izmijenjena.`);
     closeEditModal();
     fetchItems();
   };
@@ -225,6 +285,9 @@ export default function CementCatalogManager() {
                     Naziv
                   </th>
                   <th scope="col" className="border-b border-gray-200 px-4 py-3 font-semibold">
+                    Pakovanje
+                  </th>
+                  <th scope="col" className="border-b border-gray-200 px-4 py-3 font-semibold">
                     Na stanju
                   </th>
                   <th scope="col" className="relative border-b border-gray-200 px-4 py-3">
@@ -240,6 +303,9 @@ export default function CementCatalogManager() {
                   >
                     <td className="px-4 py-3 font-semibold text-gray-900">
                       {item.name}
+                    </td>
+                    <td className="px-4 py-3">
+                      <PackagingBadge packaging={item.packaging} />
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -286,6 +352,9 @@ export default function CementCatalogManager() {
                   <div className="font-semibold text-gray-900">
                     {item.name}
                   </div>
+                  <span className="mt-1 mr-1 inline-block">
+                    <PackagingBadge packaging={item.packaging} />
+                  </span>
                   <span
                     className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
                       item.na_stanju !== false
@@ -331,7 +400,7 @@ export default function CementCatalogManager() {
             <form onSubmit={handleEdit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
-                  Naziv
+                  Naziv (bez pakovanja)
                 </label>
                 <input
                   type="text"
@@ -340,6 +409,22 @@ export default function CementCatalogManager() {
                   autoFocus
                   className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                  Pakovanje
+                </label>
+                <PackagingPicker value={editPackaging} onChange={setEditPackaging} name="edit_packaging" />
+                <p className="mt-2 text-xs text-gray-500">
+                  Puni naziv:{" "}
+                  <span className="font-semibold text-gray-800">
+                    {editName.trim() ? composeCementName(editName, editPackaging) : "-"}
+                  </span>
+                </p>
+                <p className="mt-1 text-xs text-gray-400">
+                  Promjena naziva se automatski prenosi na dozvole kupaca.
+                </p>
               </div>
 
               <div>
@@ -454,19 +539,36 @@ export default function CementCatalogManager() {
                 ➕ Dodaj novu vrstu cementa
               </h4>
               <p className="mt-2 text-sm text-gray-500">
-                Unesite naziv nove vrste cementa (npr. "PREMILUK (CEM I 52,5
-                N) - 25 kg").
+                Unesite naziv bez pakovanja (npr. "CEM I 52,5 N - PREMILUK") i
+                odaberite pakovanje.
               </p>
             </div>
 
             <form onSubmit={handleAdd} className="space-y-4">
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Naziv vrste cementa"
-                autoFocus
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
-              />
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                  Naziv
+                </label>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="npr. CEM I 52,5 N - PREMILUK"
+                  autoFocus
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-red-100"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                  Pakovanje
+                </label>
+                <PackagingPicker value={packaging} onChange={setPackaging} name="add_packaging" />
+                <p className="mt-2 text-xs text-gray-500">
+                  Puni naziv:{" "}
+                  <span className="font-semibold text-gray-800">
+                    {name.trim() ? composeCementName(name, packaging) : "-"}
+                  </span>
+                </p>
+              </div>
               <div className="flex gap-3 justify-end">
                 <button
                   type="button"

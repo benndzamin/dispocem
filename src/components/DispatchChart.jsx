@@ -10,6 +10,7 @@ import {
   Legend,
 } from "recharts";
 import { supabase } from "../supabaseClient";
+import { isBulkName, isBulkPackaging } from "../utils/cementPackaging";
 
 // Prosječna nosivost po utovaru - koristi se samo dok se ne uvede stvarno
 // evidentiranje količine po najavi. Vidi napomenu ispod grafa u UI-ju.
@@ -36,9 +37,6 @@ const SPECIAL_SERIES = [
   { id: "UKUPNO", label: "UKUPNO", color: COLOR_UKUPNO },
 ];
 
-function isBulkCement(name) {
-  return /rinfuza/i.test(name || "");
-}
 
 function dateKey(d) {
   const y = d.getFullYear();
@@ -65,7 +63,7 @@ function colorForType(id, allTypes) {
 
 export default function DispatchChart({ refreshKey }) {
   const [periodKey, setPeriodKey] = useState("7d");
-  const [cementTypes, setCementTypes] = useState([]);
+  const [allCementTypes, setAllCementTypes] = useState([]);
   const [selectedSeries, setSelectedSeries] = useState(
     () => new Set(["RINFUZA", "VRECE"]),
   );
@@ -76,10 +74,9 @@ export default function DispatchChart({ refreshKey }) {
     const fetchTypes = async () => {
       const { data, error } = await supabase
         .from("cement_types")
-        .select("id, name")
-        .eq("is_active", true)
+        .select("id, name, packaging, is_active")
         .order("name", { ascending: true });
-      if (!error) setCementTypes(data || []);
+      if (!error) setAllCementTypes(data || []);
     };
     fetchTypes();
   }, []);
@@ -117,11 +114,23 @@ export default function DispatchChart({ refreshKey }) {
     };
   }, [periodKey, refreshKey]);
 
+  // Aktivne vrste su serije za izbor; pakovanje se čita i za obrisane vrste.
+  const cementTypes = useMemo(
+    () => allCementTypes.filter((t) => t.is_active !== false),
+    [allCementTypes],
+  );
+
   const nameToId = useMemo(() => {
     const map = new Map();
     for (const t of cementTypes) map.set(t.name, t.id);
     return map;
   }, [cementTypes]);
+
+  const packagingByName = useMemo(() => {
+    const map = new Map();
+    for (const t of allCementTypes) map.set(t.name, t.packaging);
+    return map;
+  }, [allCementTypes]);
 
   const chartData = useMemo(() => {
     const period = PERIODS.find((p) => p.key === periodKey) ?? PERIODS[0];
@@ -162,7 +171,9 @@ export default function DispatchChart({ refreshKey }) {
       const bucket = buckets.get(key);
       if (!bucket) continue;
 
-      const bulk = isBulkCement(vrsta);
+      // Rinfuza po pakovanju iz kataloga; za stare nazive (preimenovane vrste
+      // u starim najavama) rezerva po riječi u nazivu ("RINFUZA" / "rinfuzni").
+      const bulk = isBulkName(vrsta) || isBulkPackaging(packagingByName.get(vrsta));
       const perUnit = bulk ? TONS_PER_RINFUZA : TONS_PER_VRECE;
       if (bulk) bucket.RINFUZA += perUnit;
       else bucket.VRECE += perUnit;
@@ -187,7 +198,7 @@ export default function DispatchChart({ refreshKey }) {
       }
       return point;
     });
-  }, [rawRows, periodKey, selectedSeries, nameToId]);
+  }, [rawRows, periodKey, selectedSeries, nameToId, packagingByName]);
 
   const toggleSeries = (id) => {
     setSelectedSeries((prev) => {

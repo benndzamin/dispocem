@@ -1,24 +1,22 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import { isBulkPackaging, isBulkName } from "../utils/cementPackaging";
 
-// Rinfuza se prepoznaje po nazivu (isto kao DispatchChart) - kolona
-// "packaging" nije pouzdana.
-const isBulkCement = (name) => /rinfuza/i.test(name || "");
-
+// Grupe po koloni cement_types.packaging (25/1 i 20/1 = vreće, rinfuzni = rinfuza).
 const CEMENT_GROUPS = [
   {
     key: "vrece",
     label: "Vreće",
     image: "/Vreće.png",
     imageClass: "h-20 sm:h-28",
-    match: (name) => !isBulkCement(name),
+    match: (cement) => !isBulkPackaging(cement.packaging),
   },
   {
     key: "rinfuza",
     label: "Rinfuza",
     image: "/Rinfuza.png",
     imageClass: "h-24 sm:h-32",
-    match: isBulkCement,
+    match: (cement) => isBulkPackaging(cement.packaging),
   },
 ];
 
@@ -127,6 +125,8 @@ export default function BuyerManagement({
           label: c.name,
           id: c.id,
           na_stanju: c.na_stanju,
+          // Prije migracije pakovanja kolona može biti netačna - rezerva po nazivu.
+          packaging: isBulkName(c.name) ? "rinfuzni" : c.packaging,
         })),
       );
     }
@@ -273,6 +273,15 @@ export default function BuyerManagement({
     }
   };
 
+  // Dozvole za nazive kojih nema među aktivnim vrstama (ne mogu se odznačiti
+  // u kolonama, pa se prikazuju posebno).
+  const activeCementNames = new Set(cementTypes.map((c) => c.value));
+  const staleArticles = dozvoljeniArtikli.filter(
+    (a) => !activeCementNames.has(a),
+  );
+  const isStale = (artikal) =>
+    cementTypes.length > 0 && !activeCementNames.has(artikal);
+
   const filteredBuyers = buyers.filter((buyer) => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return true;
@@ -405,7 +414,13 @@ export default function BuyerManagement({
                           {buyer.dozvoljeni_artikli &&
                           buyer.dozvoljeni_artikli.length > 0
                             ? buyer.dozvoljeni_artikli.map((artikal) => (
-                                <div key={artikal} className="whitespace-nowrap">
+                                <div
+                                  key={artikal}
+                                  title={isStale(artikal) ? "Ova vrsta više ne postoji u katalogu" : undefined}
+                                  className={`whitespace-nowrap ${
+                                    isStale(artikal) ? "text-gray-400 line-through" : ""
+                                  }`}
+                                >
                                   {artikal}
                                 </div>
                               ))
@@ -473,7 +488,18 @@ export default function BuyerManagement({
                       <div className="text-gray-700">
                         {buyer.dozvoljeni_artikli &&
                         buyer.dozvoljeni_artikli.length > 0
-                          ? buyer.dozvoljeni_artikli.join(", ")
+                          ? buyer.dozvoljeni_artikli.map((artikal, i) => (
+                              <span key={artikal}>
+                                {i > 0 && ", "}
+                                <span
+                                  className={
+                                    isStale(artikal) ? "text-gray-400 line-through" : ""
+                                  }
+                                >
+                                  {artikal}
+                                </span>
+                              </span>
+                            ))
                           : "Nijedan"}
                       </div>
                     </div>
@@ -692,7 +718,7 @@ export default function BuyerManagement({
                       />
                       <div className="flex flex-col gap-2">
                         {cementTypes
-                          .filter((cement) => group.match(cement.value))
+                          .filter((cement) => group.match(cement))
                           .map((cement) => (
                             <label
                               key={cement.value}
@@ -722,6 +748,51 @@ export default function BuyerManagement({
                     </div>
                   ))}
                 </div>
+
+                {staleArticles.length > 0 && (
+                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <div className="text-sm font-semibold text-amber-900">
+                          Nepostojeći artikli
+                        </div>
+                        <div className="text-xs text-amber-800">
+                          Ovih vrsta više nema u katalogu (obrisane ili
+                          preimenovane). Odznačite ih da ih uklonite.
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDozvoljeniArtikli((prev) =>
+                            prev.filter((a) => activeCementNames.has(a)),
+                          )
+                        }
+                        className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100"
+                      >
+                        Ukloni sve
+                      </button>
+                    </div>
+                    <div className="mt-2 flex flex-col gap-2">
+                      {staleArticles.map((artikal) => (
+                        <label
+                          key={artikal}
+                          className="flex items-start gap-2 text-sm text-gray-700"
+                        >
+                          <input
+                            type="checkbox"
+                            checked
+                            onChange={() => handleCheckboxChange(artikal)}
+                            className="form-checkbox mt-0.5 shrink-0 rounded border-gray-300 bg-white text-brand-red focus:ring-brand-red"
+                          />
+                          <span className="min-w-0 break-words line-through decoration-gray-400">
+                            {artikal}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-2 text-sm text-gray-900">
