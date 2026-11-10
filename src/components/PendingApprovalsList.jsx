@@ -137,15 +137,29 @@ export default function PendingApprovalsList({ currentUser }) {
     if (!confirmTarget || !isMine(confirmTarget)) return;
     setApproving(true);
 
-    const { error } = await supabase
+    const { data: approvedRows, error } = await supabase
       .from("announcements")
       .update({ status: "pending" })
-      .eq("id", confirmTarget.id);
+      .eq("id", confirmTarget.id)
+      .eq("status", "awaiting_approval")
+      .select("id");
 
     setApproving(false);
 
     if (error) {
       showNotification("Greška pri odobravanju: " + error.message, "error");
+      return;
+    }
+
+    // Najava je u međuvremenu obrisana ili već odobrena - ništa nije
+    // promijenjeno, pa ne javljamo uspjeh niti šaljemo notifikaciju.
+    if (!approvedRows || approvedRows.length === 0) {
+      setConfirmTarget(null);
+      await fetchItems();
+      showNotification(
+        "Najava se više ne može odobriti (u međuvremenu je promijenjena).",
+        "error",
+      );
       return;
     }
 
@@ -195,21 +209,7 @@ export default function PendingApprovalsList({ currentUser }) {
 
     const deletedByLabel = currentUser?.email || "Nepoznat korisnik";
 
-    supabase
-      .rpc("log_announcement_deletion", {
-        p_announcement_id: confirmTarget.id,
-        p_firma: confirmTarget.firma,
-        p_vrsta_cementa: confirmTarget.vrsta_cementa,
-        p_created_by: confirmTarget.created_by,
-        p_deleted_by_label: deletedByLabel,
-        p_deleted_by_role: "wb_supervisor",
-        p_was_awaiting_approval: true,
-      })
-      .then(({ error: logError }) => {
-        if (logError) {
-          console.error("Logovanje brisanja nije uspjelo:", logError);
-        }
-      });
+    // Log brisanja (realtime upozorenja) upisuje trigger u bazi.
 
     supabase.functions
       .invoke("send-push-notification", {

@@ -1,14 +1,11 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
+import {
+  corsHeaders,
+  createAdminClient,
+  jsonResponse,
+  requireCaller,
+} from "../_shared/caller.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
 const CEMENTARA_EMAIL = Deno.env.get("CEMENTARA_EMAIL");
 
@@ -27,7 +24,23 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const payload = await req.json();
+  const supabase = createAdminClient();
+
+  // Obavijest svim kupcima šalje samo admin/supervizor/voditelj prodaje.
+  const caller = await requireCaller(req, supabase, [
+    "admin",
+    "wb_supervisor",
+    "silo_viewer",
+  ]);
+  if (caller instanceof Response) return caller;
+
+  let payload;
+  try {
+    payload = (await req.json()) ?? {};
+  } catch {
+    return jsonResponse({ error: "Neispravan zahtjev." }, 400);
+  }
+  payload.actorUserId = caller.id;
 
   if (!payload?.message) {
     return new Response(
@@ -38,8 +51,6 @@ Deno.serve(async (req) => {
       },
     );
   }
-
-  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
   // Svi kupci, bez obzira na rolu ostalih (za razliku od send-push-notification
   // koji cilja osoblje po akciji).

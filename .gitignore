@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 seed.sql
+# vite-plugin-pwa dev service worker (generiše se pri npm run dev)
+dev-dist

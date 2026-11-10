@@ -34,7 +34,6 @@ export default function VagaSupervisor({ user, userRole = "wb_supervisor" }) {
     pendingAnnouncements: 0,
     inProgressAnnouncements: 0,
   });
-  const [loadingStats, setLoadingStats] = useState(false);
   const [notification, setNotification] = useState(null); // For notifications
   const [refreshKey, setRefreshKey] = useState(0);
   const [buyers, setBuyers] = useState([]);
@@ -53,7 +52,6 @@ export default function VagaSupervisor({ user, userRole = "wb_supervisor" }) {
 
   useEffect(() => {
     const fetchSupervisorStats = async () => {
-      setLoadingStats(true);
       try {
         const [buyersResult, pendingResult, inProgressResult, buyersData] =
           await Promise.all([
@@ -84,8 +82,6 @@ export default function VagaSupervisor({ user, userRole = "wb_supervisor" }) {
         setBuyers(buyersData.data || []);
       } catch (error) {
         console.error("Error fetching supervisor stats:", error);
-      } finally {
-        setLoadingStats(false);
       }
     };
 

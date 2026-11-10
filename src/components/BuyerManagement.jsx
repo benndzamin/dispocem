@@ -49,7 +49,6 @@ export default function BuyerManagement({
   const [dozvoljeniArtikli, setDozvoljeniArtikli] = useState([]);
   const [announcementRequired, setAnnouncementRequired] = useState(true);
   const [approvalRequired, setApprovalRequired] = useState(false);
-  const [message, setMessage] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("create");
   const [searchTerm, setSearchTerm] = useState("");
@@ -63,7 +62,6 @@ export default function BuyerManagement({
     setNazivFirme("");
     setAdresa("");
     setDozvoljeniArtikli([]);
-    setMessage("");
     setAnnouncementRequired(true);
     setApprovalRequired(false);
     setOdgovornoLiceId(defaultOdgovornoId);
@@ -194,7 +192,6 @@ export default function BuyerManagement({
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setMessage("");
 
     try {
       if (!nazivFirme) throw new Error("Naziv firme je obavezan.");
@@ -211,7 +208,7 @@ export default function BuyerManagement({
           ...(canAssignOdgovorno ? { odgovorno_lice_id: odgovornoLiceId } : {}),
         });
         if (error) throw error;
-        resetForm();
+        closeBuyerModal();
         return;
       }
 
@@ -220,40 +217,37 @@ export default function BuyerManagement({
           "Email i lozinka su obavezni za kreiranje novog kupca.",
         );
 
-      const prevSession = (await supabase.auth.getSession()).data?.session;
-
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: null },
-      });
-      if (error) throw error;
-
-      const newUserId = data?.user?.id;
-      if (!newUserId) throw new Error("Nije moguće kreirati kupca.");
-
-      const { error: profileError } = await supabase.from("users").upsert(
-        [
-          {
-            id: newUserId,
+      // Kupca kreira edge funkcija (service role) - sesija osoblja u ovom
+      // browseru ostaje netaknuta.
+      const { data, error } = await supabase.functions.invoke(
+        "admin-create-buyer",
+        {
+          body: {
             email,
-            rola: "buyer",
+            password,
             naziv_firme: nazivFirme,
             adresa,
             dozvoljeni_artikli: dozvoljeniArtikli,
             announcement_required: announcementRequired,
             approval_required: approvalRequired,
           },
-        ],
-        { onConflict: "id" },
+        },
       );
-      if (profileError) throw profileError;
+      if (error) {
+        let detail = error.message;
+        try {
+          detail = (await error.context?.json())?.error || detail;
+        } catch {
+          // tijelo odgovora nije JSON - ostaje generička poruka
+        }
+        throw new Error(detail);
+      }
 
-      if (prevSession) await supabase.auth.setSession(prevSession);
+      const newUserId = data?.id;
+      if (!newUserId) throw new Error("Nije moguće kreirati kupca.");
 
-      // Profil je upisan pod sesijom novog kupca, pa mu je baza dodijelila
-      // voditelja prodaje - izbor admina/voditelja upisujemo tek sad, pod
-      // njihovom vraćenom sesijom.
+      // Baza novom kupcu dodijeli voditelja prodaje - drugačiji izbor
+      // admina/voditelja upisujemo naknadno, pod njihovom sesijom.
       if (canAssignOdgovorno && odgovornoLiceId !== defaultOdgovornoId) {
         const { error: odgovornoError } = await supabase
           .from("users")
@@ -263,7 +257,7 @@ export default function BuyerManagement({
       }
 
       showNotification("Kupac je uspješno kreiran.", "success");
-      resetForm();
+      closeBuyerModal();
       fetchBuyers();
     } catch (err) {
       console.error(err);

@@ -1,4 +1,3 @@
-import React from "react";
 
 const ROLE_DETAILS = {
   admin: {

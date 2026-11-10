@@ -1,14 +1,12 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
+import {
+  corsHeaders,
+  createAdminClient,
+  jsonResponse,
+  requireCaller,
+  STAFF_ROLES,
+} from "../_shared/caller.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
 const CEMENTARA_EMAIL = Deno.env.get("CEMENTARA_EMAIL");
 
@@ -34,7 +32,18 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const payload = await req.json();
+  const supabase = createAdminClient();
+
+  // Kupcu o promjeni statusa/brisanju javlja samo osoblje.
+  const caller = await requireCaller(req, supabase, STAFF_ROLES);
+  if (caller instanceof Response) return caller;
+
+  let payload;
+  try {
+    payload = (await req.json()) ?? {};
+  } catch {
+    return jsonResponse({ error: "Neispravan zahtjev." }, 400);
+  }
   const isDeleted = payload?.action === "deleted";
 
   if (!payload?.userId || (!isDeleted && !payload?.newStatus)) {
@@ -46,8 +55,6 @@ Deno.serve(async (req) => {
       },
     );
   }
-
-  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
   const { data: subscriptions, error: subsError } = await supabase
     .from("push_subscriptions")

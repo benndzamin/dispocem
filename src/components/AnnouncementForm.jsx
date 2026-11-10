@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import useNoticeWorkingHours from "../hooks/useNoticeWorkingHours";
 import { getBuyerBlockMessage } from "../lib/noticeSchedule";
-import NoticeScheduleBanner from "./NoticeScheduleBanner";
 
 function toDateInputValue(date) {
   const year = date.getFullYear();
@@ -11,10 +10,14 @@ function toDateInputValue(date) {
   return `${year}-${month}-${day}`;
 }
 
-const todayStr = toDateInputValue(new Date());
-const maxDate = new Date();
-maxDate.setDate(maxDate.getDate() + 30);
-const maxDateStr = toDateInputValue(maxDate);
+// Računa se pri svakom renderu, ne pri učitavanju modula - PWA ostavljena
+// otvorena preko noći bi inače nudila jučerašnji datum kao minimum.
+function getDateBounds() {
+  const today = new Date();
+  const max = new Date();
+  max.setDate(max.getDate() + 30);
+  return { todayStr: toDateInputValue(today), maxDateStr: toDateInputValue(max) };
+}
 
 export default function AnnouncementForm({
   currentUser,
@@ -25,9 +28,10 @@ export default function AnnouncementForm({
   buyers,
 }) {
   const isBuyer = role === "buyer";
+  const { todayStr, maxDateStr } = getDateBounds();
 
   const [vrstaCementa, setVrstaCementa] = useState("");
-  const [datumPlaniranja, setDatumPlaniranja] = useState(todayStr);
+  const [datumPlaniranja, setDatumPlaniranja] = useState(() => getDateBounds().todayStr);
   const [imeVozaca, setImeVozaca] = useState("");
   const [prezimeVozaca, setPrezimeVozaca] = useState("");
   const [registarskeOznake, setRegistarskeOznake] = useState("");

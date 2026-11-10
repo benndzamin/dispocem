@@ -261,6 +261,9 @@ export default function AnnouncementsList({
       const ONE_HOUR_MS = 60 * 60 * 1000;
       return (
         (item.status === "pending" || item.status === "awaiting_approval") &&
+        // Rok se namjerno računa u trenutku renderovanja (lista se ionako
+        // osvježava svakih 60 s), a baza ga svakako provjerava RLS-om.
+        // eslint-disable-next-line react-hooks/purity
         Date.now() - new Date(item.created_at).getTime() < ONE_HOUR_MS
       );
     }
@@ -308,21 +311,7 @@ export default function AnnouncementsList({
 
     const wasAwaitingApproval = deleteTarget.status === "awaiting_approval";
 
-    supabase
-      .rpc("log_announcement_deletion", {
-        p_announcement_id: deleteTarget.id,
-        p_firma: deleteTarget.firma,
-        p_vrsta_cementa: deleteTarget.vrsta_cementa,
-        p_created_by: deleteTarget.created_by,
-        p_deleted_by_label: deletedByLabel,
-        p_deleted_by_role: role,
-        p_was_awaiting_approval: wasAwaitingApproval,
-      })
-      .then(({ error: logError }) => {
-        if (logError) {
-          console.error("Logovanje brisanja nije uspjelo:", logError);
-        }
-      });
+    // Log brisanja (realtime upozorenja) upisuje trigger u bazi.
 
     supabase.functions
       .invoke("send-push-notification", {
@@ -397,10 +386,15 @@ export default function AnnouncementsList({
 
     setStatusLoading(true);
     const previousStatus = statusTarget.status;
-    const { error } = await supabase
+    // .eq("status", previousStatus): ako je neko u međuvremenu već promijenio
+    // status (ili RLS sakrio red), update ne pogodi nijedan red - bez ovoga bi
+    // UI prijavio uspjeh iako se ništa nije promijenilo.
+    const { data: updatedRows, error } = await supabase
       .from("announcements")
       .update({ status: selectedStatus })
-      .eq("id", statusTarget.id);
+      .eq("id", statusTarget.id)
+      .eq("status", previousStatus)
+      .select("id");
 
     if (error) {
       showNotification(
@@ -411,12 +405,19 @@ export default function AnnouncementsList({
       return;
     }
 
-    await supabase.from("announcement_status_history").insert({
-      announcement_id: statusTarget.id,
-      changed_by: currentUser?.id,
-      old_status: previousStatus,
-      new_status: selectedStatus,
-    });
+    if (!updatedRows || updatedRows.length === 0) {
+      showNotification(
+        "Status najave je u međuvremenu promijenjen - lista je osvježena.",
+        "error",
+      );
+      setStatusLoading(false);
+      setStatusTarget(null);
+      setSelectedStatus("");
+      fetchAnnouncements();
+      return;
+    }
+
+    // Historiju statusa upisuje trigger u bazi.
 
     // created_by je null ako je kreator (osoblje) u međuvremenu obrisan.
     if (previousStatus !== selectedStatus && statusTarget.created_by) {
@@ -816,7 +817,7 @@ export default function AnnouncementsList({
                         </span>
                       ) : (
                         <div className="flex flex-nowrap gap-2">
-                          {role !== "buyer" && (
+                          {role !== "buyer" && item.status !== "awaiting_approval" && (
                             <button
                               type="button"
                               onClick={() => openStatusModal(item)}
@@ -923,7 +924,7 @@ export default function AnnouncementsList({
                   </div>
                 ) : (
                   <div className="mt-4 flex flex-wrap gap-2">
-                    {role !== "buyer" && (
+                    {role !== "buyer" && item.status !== "awaiting_approval" && (
                       <button
                         type="button"
                         onClick={() => openStatusModal(item)}

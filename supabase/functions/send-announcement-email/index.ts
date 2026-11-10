@@ -1,15 +1,14 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import {
+  corsHeaders,
+  createAdminClient,
+  escapeHtml,
+  jsonResponse,
+  requireCaller,
+  STAFF_ROLES,
+} from "../_shared/caller.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const CEMENTARA_EMAIL = Deno.env.get("CEMENTARA_EMAIL");
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const FROM_ADDRESS = "Dispocem <onboarding@resend.dev>";
 
 function buildDetailsHtml(payload: Record<string, unknown>) {
@@ -25,7 +24,7 @@ function buildDetailsHtml(payload: Record<string, unknown>) {
     ${rows
       .map(
         ([label, value]) =>
-          `<tr><td style="color:#6b7280;font-weight:600">${label}</td><td>${value}</td></tr>`,
+          `<tr><td style="color:#6b7280;font-weight:600">${label}</td><td>${escapeHtml(value)}</td></tr>`,
       )
       .join("")}
   </table>`;
@@ -52,7 +51,26 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const payload = await req.json();
+  const supabase = createAdminClient();
+
+  const caller = await requireCaller(req, supabase, [...STAFF_ROLES, "buyer"]);
+  if (caller instanceof Response) return caller;
+
+  let payload;
+  try {
+    payload = (await req.json()) ?? {};
+  } catch {
+    return jsonResponse({ error: "Neispravan zahtjev." }, 400);
+  }
+
+  if (caller.rola === "buyer") {
+    // Kupac šalje samo potvrdu svoje nove najave - i to samo na svoju adresu.
+    if (payload?.action === "deleted") {
+      return jsonResponse({ error: "Nemate dozvolu za ovu radnju." }, 403);
+    }
+    payload.buyerEmail = caller.email;
+    if (caller.naziv_firme) payload.firma = caller.naziv_firme;
+  }
 
   if (payload?.action === "deleted") {
     if (!payload?.vrstaCementa || (!payload?.buyerId && !payload?.notifySupervisors)) {
@@ -65,7 +83,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
     const result = {
       buyerSent: false,
       buyerError: null as string | null,
@@ -87,7 +104,7 @@ Deno.serve(async (req) => {
           await sendEmail(
             buyer.email,
             "Najava otpreme obrisana",
-            `<p>Vaša najava otpreme (${payload.vrstaCementa}) je obrisana.</p>`,
+            `<p>Vaša najava otpreme (${escapeHtml(payload.vrstaCementa)}) je obrisana.</p>`,
           );
           result.buyerSent = true;
         } catch (err) {
@@ -105,7 +122,7 @@ Deno.serve(async (req) => {
       if (supervisorsError) {
         result.supervisorsError = supervisorsError.message;
       } else {
-        const label = payload.deletedByLabel || "Operater";
+        const label = escapeHtml(payload.deletedByLabel || "Operater");
         await Promise.all(
           (supervisors || [])
             .filter((s) => s.email)
@@ -114,7 +131,7 @@ Deno.serve(async (req) => {
                 await sendEmail(
                   s.email,
                   `Najava obrisana - ${payload.firma || ""}`,
-                  `<p>${label} je obrisao/la najavu za utovar (${payload.vrstaCementa}).</p>`,
+                  `<p>${label} je obrisao/la najavu za utovar (${escapeHtml(payload.vrstaCementa)}).</p>`,
                 );
                 result.supervisorsSent++;
               } catch (err) {

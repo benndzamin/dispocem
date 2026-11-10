@@ -91,11 +91,27 @@ export default function DispatchChart({ refreshKey }) {
       start.setHours(0, 0, 0, 0);
       start.setDate(start.getDate() - (period.days - 1));
 
-      const { data, error } = await supabase
-        .from("announcement_status_history")
-        .select("announcement_id, changed_at, announcements(vrsta_cementa)")
-        .eq("new_status", "completed")
-        .gte("changed_at", start.toISOString());
+      // PostgREST vraća najviše 1000 redova po upitu (i to tiho), pa za
+      // duže periode čitamo stranicu po stranicu.
+      const PAGE = 1000;
+      let data = [];
+      let error = null;
+      for (let from = 0; ; from += PAGE) {
+        const res = await supabase
+          .from("announcement_status_history")
+          .select("id, announcement_id, changed_at, announcements(vrsta_cementa)")
+          .eq("new_status", "completed")
+          .gte("changed_at", start.toISOString())
+          .order("changed_at", { ascending: true })
+          .order("id", { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (res.error) {
+          error = res.error;
+          break;
+        }
+        data = data.concat(res.data || []);
+        if (!active || (res.data || []).length < PAGE) break;
+      }
 
       if (!active) return;
       setLoading(false);

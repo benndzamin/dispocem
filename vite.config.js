@@ -16,7 +16,7 @@ export default defineConfig({
         enabled: true,
         type: 'module',
       },
-      includeAssets: ['favicon.svg', 'logo.png', 'icons.svg'],
+      includeAssets: ['logo.png'],
       manifest: {
         name: 'Dispocem Logistics',
         short_name: 'Dispocem',

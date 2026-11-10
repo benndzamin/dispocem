@@ -1,14 +1,12 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
+import {
+  corsHeaders,
+  createAdminClient,
+  jsonResponse,
+  requireCaller,
+  STAFF_ROLES,
+} from "../_shared/caller.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
 const CEMENTARA_EMAIL = Deno.env.get("CEMENTARA_EMAIL");
 
@@ -27,7 +25,35 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const payload = await req.json();
+  const supabase = createAdminClient();
+
+  // Kupac obavještava osoblje o svojoj novoj/obrisanoj najavi, osoblje o
+  // svojim akcijama - ali samo prijavljeni korisnik, ne bilo ko s anon ključem.
+  const caller = await requireCaller(req, supabase, [...STAFF_ROLES, "buyer"]);
+  if (caller instanceof Response) return caller;
+
+  let payload;
+  try {
+    payload = (await req.json()) ?? {};
+  } catch {
+    return jsonResponse({ error: "Neispravan zahtjev." }, 400);
+  }
+
+  // Identitet pozivaoca uzimamo iz JWT-a, ne iz tijela zahtjeva.
+  payload.actorUserId = caller.id;
+  if (caller.rola === "buyer") {
+    if (payload.action === "approved") {
+      return jsonResponse({ error: "Nemate dozvolu za ovu radnju." }, 403);
+    }
+    payload.buyerId = caller.id;
+    payload.deletedByRole = "buyer";
+    if (caller.naziv_firme) {
+      payload.firma = caller.naziv_firme;
+      payload.deletedByLabel = caller.naziv_firme;
+    }
+  } else if (payload.action === "deleted") {
+    payload.deletedByRole = caller.rola;
+  }
 
   if (!payload?.firma || !payload?.vrstaCementa) {
     return new Response(
@@ -38,8 +64,6 @@ Deno.serve(async (req) => {
       },
     );
   }
-
-  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
   // Kad operater obrise najavu, ne obavjestavamo druge operatere (peer buku) -
   // ide samo supervizoru. Kreiranje i brisanje od strane admina/supervizora i
